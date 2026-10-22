@@ -228,7 +228,7 @@ p2.bans = [{ c: '*', n: 1, r: 'sfp' }, { c: 'lg', n: 1, r: 'dogso' }];
 p3.bans = [{ c: 'lg', n: 3, r: 'sfp', x: 2 }];
 p4.bans = [{ c: 'lg', n: 1, y: 1 }, { c: 'ec', n: 1, r: 'yy' }];
 p5.cyc = { ec: 1 }; p5.ycAcc = 3; p5.rch = { lg: ['sfp'] };
-const j2 = E.squad(S, Object.keys(S.clubs).find(id => !S.order.includes(id) && !S.clubs[id].ab && E.squad(S, id).length))[0];
+const j2 = E.squad(S, Object.keys(S.clubs).find(id => !S.order.includes(id) && !S.clubs[id].ab && !S.clubs[id].afc && E.squad(S, id).length))[0];   // a J2 club (not an ACL club abroad)
 if (j2) j2.bans = [{ c: '*', n: 3, r: 'vc' }];
 const n0 = S.news.length;
 E.rollover(S); if (S.fired) E.takeJob(S, S.fired.offers[0]);

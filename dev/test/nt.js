@@ -126,8 +126,10 @@ const seen = { calls: [], awayIn: 0, matchesInWindow: 0, lcInWindow: 0, sameDay:
   const t = S.lastTable.filter(id => S.order.includes(id));
   S.board = 60; E.rollover(S);
   if (!S.fired) {
-    const lc = S.cups.lc, top = t.filter(id => S.order.includes(id));
-    ok(lc.prime.join() === top.slice(0, 2).join(), 'next season: last season\'s top two in the プライムラウンド');
+    // 2026-10-23: the ACL clubs (ACLE league stage, preliminary stage, ACL2) are seeded, the rest from the table
+    const jp = [...S.afc.jp.d, ...S.afc.jp.ps, ...S.afc.jp.t].filter(id => S.order.includes(id));
+    const lc = S.cups.lc, top = jp.concat(t.filter(id => S.order.includes(id) && !jp.includes(id)));
+    ok(lc.prime.join() === top.slice(0, 2).join(), 'next season: the first two ACL clubs in the プライムラウンド');
     const afc = S.fixtures.filter(f => f.cup === 'lc' && f.grp === 'afc').map(f => [f.h, f.a]);
     ok(JSON.stringify(afc) === JSON.stringify([[top[2], top[5]], [top[3], top[4]]]), '3rd v 6th, 4th v 5th');
     const lg = S.fixtures.filter(f => !f.cup);
@@ -190,8 +192,11 @@ const seen = { calls: [], awayIn: 0, matchesInWindow: 0, lcInWindow: 0, sameDay:
     ok(before === 10 && S2.v >= 11, 'old save had a round on 11/14 (in the window); now v11+');
     const lg = S2.fixtures.filter(f => !f.cup && !f.played);
     ok(!lg.some(f => E.inNtWindow(2026, f.date)), 'old save: unplayed rounds moved out of the windows');
-    ok(lg.filter(f => f.r === 15).every(f => f.date === '2026-11-21') && lg.filter(f => f.r === 16).every(f => f.date === '2026-11-25'), 'old save: 第15節 11/21, 第16節 11/25 (the real dates)');
-    const day = {}; for (const f of S2.fixtures) for (const c of [f.h, f.a]) { const k = c + f.date; day[k] = (day[k] || 0) + 1; }
+    // (2026-10-23: a club with an AFC match within two days plays its round on another day — afcResched)
+    const nearAfc = f => S2.fixtures.some(a => E.isAfc(a) && [f.h, f.a].some(c => c === a.h || c === a.a) && Math.abs(E.D.diff(a.date, f.r === 15 ? '2026-11-21' : '2026-11-25')) <= E.AFC.dist);
+    ok(lg.filter(f => f.r === 15 && !nearAfc(f)).every(f => f.date === '2026-11-21') && lg.filter(f => f.r === 16 && !nearAfc(f)).every(f => f.date === '2026-11-25'), 'old save: 第15節 11/21, 第16節 11/25 (the real dates)');
+    // the AFC matches before the save's day were worked out afterwards (an old cup day may be the same)
+    const day = {}; for (const f of S2.fixtures) if (!(E.isAfc(f) && f.date < S2.date)) for (const c of [f.h, f.a]) { const k = c + f.date; day[k] = (day[k] || 0) + 1; }
     ok(Object.values(day).every(n => n === 1), 'old save: no club plays twice on one day');
     ok(S2.players[Object.values(S2.players).find(p => p.name === 'レオ セアラ').id].nat === 'BRA', 'old save: nationality fixed');
     ok(!E.lcNew(S2.cups.lc), 'old save: this season\'s Lカップ stays as it was');

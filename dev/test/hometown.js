@@ -23,7 +23,7 @@ const oku = v => E.money(v);
 const S = E.newGame(DATA, 'kashiwa', 'テスト', '2026-10-15');
 const c = S.clubs[S.my];
 ok(S.v >= 15, `new game: S.v ${S.v}`);
-ok(Object.values(S.clubs).filter(x => !x.ab).every(x => x.fans === FB[x.fan] && x.fan0 === FB[x.fan] && x.fanP === x.pres), 'every club starts with the supporters of its fan level (8,000〜34,000)');
+ok(Object.values(S.clubs).filter(x => !x.ab && !x.afc).every(x => x.fans === FB[x.fan] && x.fan0 === FB[x.fan] && x.fanP === x.pres) && Object.values(S.clubs).filter(x => x.afc).every(x => x.fans == null), 'every club starts with the supporters of its fan level (8,000〜34,000); the ACL clubs abroad have none');
 ok(!('stadium' in E.FACILITY) && Object.values(S.clubs).every(x => !('stadium' in x.fac)) && !E.upgrade(S, 'stadium').ok, 'スタジアム設備 is gone from the facilities (4 left)');
 ok(E.gatePer(c) === T.per && E.townUpkeep(c) === 0 && E.fansTarget(c) === c.fans, `no buildings: ${T.per * 10000}円 a spectator, no upkeep, the supporters at their level`);
 ok(TOWN_OK(), 'the table: 8 kinds, expansion 15〜40億 in 6〜12 months, the one-offs cheaper');

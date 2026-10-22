@@ -377,7 +377,82 @@ const abroad = { clubs: Object.entries(AB.CLUBS).map(([id, [name, short, cc, lg,
   }
 }
 console.log('abroad clubs', abroad.clubs.length, 'players', abroad.players.length);
-const out = { season: '2026/27', start: '2026-08-07', round1, clubs, players, j2, abroad, presV: 4, rev: DATA_REV };
+
+// ---------- ACL (2026-10-23): the clubs of the AFC club competitions and the 2026/27 squads, see afc.js ----------
+// Strength: the clubs' Opta-scale rating → the J1-fitted match strength (2.39 + 0.858 × rating), less what the 格 adds in a
+// match ((格 − 3) × 0.25) = the top-14 average their players are tuned to (`s`). The 2026/27 squads keep the order the hints
+// and the default (import / age) give, and the whole club is shifted so its top 14 average exactly `s`.
+const AFC = require('./afc.js'), AFCSQ = require('./afc_squads.js');
+const afc = (() => {
+  const AFC_K = { a: 2.39, b: 0.858, pres: 0.25 };
+  const sOf = c => Math.round(((AFC_K.a + AFC_K.b * c.op) - ((c.pres || 2) - 3) * AFC_K.pres) * 10) / 10;
+  const ids = new Set();
+  const clubs = AFC.CLUBS.map(c => {
+    if (ids.has(c.id)) throw new Error('afc: duplicate club ' + c.id); ids.add(c.id);
+    if (!AFC.ASSOC[c.cc]) throw new Error('afc: no association ' + c.cc);
+    return { ...c, s: sOf(c), area: AFC.ASSOC[c.cc][0], reg: AFC.ASSOC[c.cc][1] };
+  });
+  // the draw as transcribed: every match seen from both sides
+  const S26 = AFC.S2026;
+  for (const reg of ['E', 'W']) {
+    const tab = S26.acle[reg], teams = Object.keys(tab);
+    if (teams.length !== 16) throw new Error('afc: league stage ' + reg + ' has ' + teams.length);
+    for (const t of teams) {
+      const ms = tab[t].split(' '); if (ms.length !== 8) throw new Error('afc: ' + t + ' has ' + ms.length + ' games');
+      ms.forEach((m, i) => {
+        const home = m[0] === '+', opp = m.slice(1), back = (tab[opp] || '').split(' ')[i];
+        if (!back || back !== (home ? '-' : '+') + t) throw new Error(`afc: draw ${reg} md${i + 1} ${t} ${m} vs ${back}`);
+        if (!ids.has(opp) && !['kashima', 'kobe', 'kashiwa', 'kyoto', 'gosaka'].includes(opp)) throw new Error('afc: unknown club ' + opp);
+      });
+    }
+  }
+  const yrs = b => { const [y, m, d] = b.split('-').map(Number); let a = 2026 - y; if (8 < m || (m === 8 && 7 < d)) a--; return a; };
+  const squads = {};
+  for (const [cid, list] of Object.entries(AFCSQ)) {
+    const c = clubs.find(x => x.id === cid); if (!c) throw new Error('afc: squad of unknown club ' + cid);
+    const nums = new Set(), r0 = rnd(hash('afc' + cid));
+    const ps = list.map(([num, pos, nat, name, short, b, hint, pp], i) => {
+      if (nums.has(num)) throw new Error(`afc: ${cid} number ${num} twice`); nums.add(num);
+      if (!['GK', 'DF', 'MF', 'FW'].includes(pos)) throw new Error('afc: position ' + pos + ' ' + name);
+      if (pp && DP_CAT[pp] !== pos) throw new Error('afc: pp outside the registered category ' + name);
+      const rr = rnd(hash('afcp' + cid + name))();
+      // the birthday: given / the year only (a date inside it) / unknown (21〜31, older for the rated ones)
+      let birth = b, est = 0;
+      if (!/^\d{4}-\d\d-\d\d$/.test(b || '')) {
+        est = 1; const y = /^\d{4}/.test(b || '') ? Number(b.slice(0, 4)) : 2026 - (hint ? 25 + Math.floor(rr * 7) : 21 + Math.floor(rr * 11));
+        birth = `${y}-${String(1 + Math.floor(rr * 12)).padStart(2, '0')}-${String(1 + Math.floor(rnd(hash('d' + name))() * 28)).padStart(2, '0')}`;
+      }
+      const a = yrs(birth), imp = nat !== c.cc;
+      const ageAdj = a <= 18 ? -8 : a <= 20 ? -6 : a <= 22 ? -3.5 : a <= 24 ? -1.5 : a <= 30 ? 0 : a <= 32 ? -0.5 : a <= 34 ? -1.5 : -3;
+      const gkBack = pos === 'GK' && list.slice(0, i).some(x => x[1] === 'GK');
+      const base = hint || (c.s + (imp ? -1 : -3) + ageAdj - (gkBack ? 3 : 0) + (r0() * 3 - 1.5));
+      return { num, pos, pp: pos === 'GK' ? 'GK' : pp || null, nat, name, short, birth, est, a, base };
+    });
+    const top = ps.map(p => p.base).sort((x, y) => y - x).slice(0, 14), avg = top.reduce((x, y) => x + y, 0) / top.length;
+    const shift = c.s - avg;
+    for (const p of ps) {
+      p.ovr = Math.max(40, Math.min(90, Math.round(p.base + shift)));
+      const rr = rnd(hash('afcpot' + cid + p.name))();
+      p.pot = Math.min(90, p.ovr + (p.a <= 20 ? 5 + Math.floor(rr * 8) : p.a <= 23 ? 2 + Math.floor(rr * 5) : p.a <= 26 ? Math.floor(rr * 3) : 0));
+    }
+    // the detailed positions the source didn't give: what the squad is short of, best players first (as for J1)
+    const have = {}; for (const p of ps) if (p.pp) have[p.pp] = (have[p.pp] || 0) + 1;
+    for (const p of ps.filter(q => !q.pp).sort((x, y) => y.ovr - x.ovr)) {
+      const t = DP_TARGET[p.pos]; let best = null, bv = -1e9;
+      for (const [dp, want] of Object.entries(t)) { const v = (want - (have[dp] || 0)) / want; if (v > bv) { bv = v; best = dp; } }
+      p.pp = best; have[best] = (have[best] || 0) + 1;
+    }
+    squads[cid] = ps.map(p => { const o = { num: p.num, pos: p.pos, pp: p.pp, nat: p.nat, name: p.name, short: p.short, birth: p.birth, ovr: p.ovr, pot: p.pot }; if (p.est) o.be = 1; return o; });
+    const t14 = squads[cid].map(p => p.ovr).sort((x, y) => y - x).slice(0, 14);
+    if (Math.abs(t14.reduce((x, y) => x + y, 0) / 14 - c.s) > 0.6) console.warn('afc: squad strength off', cid, c.s);
+  }
+  // every overseas club in this season's league stage has its real squad
+  for (const reg of ['E', 'W']) for (const t of Object.keys(S26.acle[reg])) if (ids.has(t) && !squads[t]) throw new Error('afc: no 2026/27 squad for ' + t);
+  const names = Object.fromEntries(Object.entries(AFC.NAMES).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([x, s]) => [x, typeof s === 'string' && x !== 'o' && x !== 's' ? s.split(' ') : s]))]));
+  return { assoc: AFC.ASSOC, slots: AFC.SLOTS, clubs, jrec: AFC.JREC, s2026: S26, prize: AFC.PRIZE, squads, k: AFC_K, names, culture: AFC.CULTURE, imports: AFC.IMPORTS, impNat: AFC.IMPORT_NAT };
+})();
+console.log('afc clubs', afc.clubs.length, 'squads', Object.keys(afc.squads).length, 'players', Object.values(afc.squads).reduce((n, l) => n + l.length, 0));
+const out = { season: '2026/27', start: '2026-08-07', round1, clubs, players, j2, abroad, afc, presV: 4, rev: DATA_REV };
 fs.writeFileSync(path.join(__dirname, 'data.json'), JSON.stringify(out));
 console.log('clubs', clubs.length, 'players', players.length, 'bytes', JSON.stringify(out).length);
 const avg = {};

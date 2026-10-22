@@ -1618,7 +1618,7 @@ function cupFxRow(f, note) {
 }
 function cupView() {
   const key = UI.lg.cup || 'ec'; const cu = S.cups && S.cups[key];
-  const seg = `<div class="seg">${Object.entries(E.CUPS).map(([k, x]) => `<button data-act="cupPick" data-k="${k}" aria-pressed="${key === k}">${x.jp}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${Object.entries(E.CUPS).filter(([, x]) => !x.afc).map(([k, x]) => `<button data-act="cupPick" data-k="${k}" aria-pressed="${key === k}">${x.jp}</button>`).join('')}</div>`;
   if (!cu) return seg + '<p class="fine">今季のカップ戦は開催されていません。次のシーズンから始まります。</p>';
   if (key === 'lc' && E.lcNew(cu)) return seg + lcView(cu);
   const C = E.cupNames(S, key);
