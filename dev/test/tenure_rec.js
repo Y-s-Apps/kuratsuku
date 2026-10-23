@@ -1,11 +1,21 @@
 // フロントの規則を比べるための記録（2026-10-16）: 解任しないで N 季回し、1試合ごとの [勝点, 能力差（自クラブ − 相手）,
 // ホーム ±1, カップ戦, リーグの試合数, その時点の順位] と、季ごとの目標の順位（rk＝能力＋格×0.5 の順位、old＝以前の決め方の目標）・
 // 最終順位・降格を JSON 1行／回で書く。規則は board_replay.py が後から当てはめる（同じ試合結果どうしで比べられる）。
-// usage: node dev/test/tenure_rec.js <club> <runs> <seasons> <best|rotate|keep> > rec.jsonl   （1季約5秒）
+// 2026-10-24: 順位表がリーグ戦だけになった（それまではJ1どうしのカップ戦・ACLも数えていた）。比べられるように、以前の数え方の
+// 順位も記録する（1試合ごとの7つ目 ork、季ごとの opos）。board_replay.py の --old でそちらを使う。
+// usage: node dev/test/tenure_rec.js <club> <runs> <seasons> <best|rotate|keep> > rec.jsonl   （1季約10秒）
 //   best＝毎試合ベストの先発とAIの作戦、rotate＝毎試合ローテーション（tenure.js と同じ）、keep＝開幕の先発のまま（欠場は秘書の案）
 const E = require(process.env.ENG || '../src/engine.js'), D = require('../data.json');
 const [club, runs, N, mgr] = [process.argv[2], +process.argv[3], +process.argv[4], process.argv[5] || 'rotate'];
 const tpos = r => r <= 3 ? 3 : r <= 7 ? 7 : r <= 13 ? 13 : 17;
+// my place in the table as it was counted until 2026-10-24 (every played match between two J1 clubs, cups and AFC included)
+const oldRank = S => {
+  const t = {}; for (const id of S.order) t[id] = { id, pts: 0, gf: 0, ga: 0 };
+  for (const f of S.fixtures) { if (!f.played || !t[f.h] || !t[f.a]) continue; const H = t[f.h], A = t[f.a];
+    H.gf += f.hg; H.ga += f.ag; A.gf += f.ag; A.ga += f.hg;
+    if (f.hg > f.ag) H.pts += 3; else if (f.hg < f.ag) A.pts += 3; else { H.pts++; A.pts++; } }
+  return Object.values(t).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf || a.id.localeCompare(b.id)).findIndex(r => r.id === S.my) + 1;
+};
 const targets = S => {   // my target's position under each way of ranking
   const pres = c => (S.clubs[c].pres || 2) - 3, st = c => E.strength(S, c), pw = c => E.power(S, c);
   const rank = f => [...S.order].sort((a, b) => f(b) - f(a)).indexOf(S.my) + 1;
@@ -28,13 +38,14 @@ for (let r = 0; r < runs; r++) {
       let pts = my > th ? 3 : my < th ? 0 : 1; if (fx.cup && my === th && fx.pk) pts = 1;
       const lg = !fx.cup ? S.fixtures.filter(f => f.played && !f.cup && (f.h === S.my || f.a === S.my)).length : null;
       const rk = !fx.cup ? E.table(S).findIndex(x => x.id === S.my) + 1 : null;
-      cur.m.push([pts, Math.round((E.strength(S, S.my) - E.strength(S, opp)) * 1000) / 1000, k === 'h' ? 1 : -1, fx.cup ? 1 : 0, lg, rk]);
+      cur.m.push([pts, Math.round((E.strength(S, S.my) - E.strength(S, opp)) * 1000) / 1000, k === 'h' ? 1 : -1, fx.cup ? 1 : 0, lg, rk, !fx.cup ? oldRank(S) : null]);
       S.board = 60;
     }
     else if (st.stop === 'inbox') S.inbox.forEach(y => { y.seen = true; if (y.type === 'offer') E.rejectOffer(S, y.id); });
     else if (st.stop === 'seasonEnd') {
-      const se = S.seasonEnd; cur.pos = se.myPos; cur.rel = se.rel.includes(S.my) ? 1 : 0;
+      const se = S.seasonEnd; cur.pos = se.myPos; cur.rel = se.rel.includes(S.my) ? 1 : 0; cur.opos = oldRank(S); cur.orel = cur.opos > S.order.length - 3 ? 1 : 0;
       cur.cups = ['ec', 'lc'].filter(k => se.cups && se.cups[k] && /優勝/.test(String(se.cups[k].my || ''))).length;
+      cur.afcw = se.afc ? (se.afc.acle[0] === S.my ? E.AFC.board.acle : 0) + (se.afc.acl2[0] === S.my ? E.AFC.board.acl2 : 0) : 0;   // ACLE・ACL2 titles (2026-10-23〜)
       out.seasons.push(cur);
       if (cur.rel || out.seasons.length >= N) break;
       S.board = 100; E.rollover(S); if (S.fired) break; S.board = 60; cur = { t: targets(S), m: [] };

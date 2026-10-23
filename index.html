@@ -5644,10 +5644,14 @@ const PRIZE = [30000, 12000, 6000, 3000, 2000, 1500, 1200, 1000, 900, 800, 700, 
    warn    — a warning in the news (and a stop) when it falls to these
    sub is shown as HTML in a .phr line: <wbr> marks where it may wrap (no breaks inside a word)
    2026-10-18 (the user): やさしい fires only on relegation (fireEnd 0 and fireMid −1 can't be reached, no warnings), ふつう
-   never fires mid-season — relegation or the end-of-season verdict (from the second season); only きびしい fires mid-season */
+   never fires mid-season — relegation or the end-of-season verdict (from the second season); only きびしい fires mid-season
+   2026-10-24: the table counts league matches only (it counted the cup and AFC matches between J1 clubs). Replayed on the same
+   matches (tenure_rec.js, 横浜FM 4 seasons: the best XI ×48, rotating ×24; 鹿島・広島 ×16), ふつう's fireEnd 10 fired more
+   for the best XI (25% → 35%, relegation aside) → 7, which gives the same share fired as before (relegation included: 48%,
+   rotating 62%; 鹿島・広島 0%). きびしい stayed (83% → 81%), やさしい has no verdict to fire on */
 const BOARD_LV = {
   easy: { jp: 'やさしい', sub: '解任は<wbr>J2降格の<wbr>ときだけ。<wbr>目標に<wbr>届かなくても<wbr>続けられる。', match: 1.4, met: 20, near: 0, nearBand: 3, perPos: 3, missMax: 12, keep: 0.5, fireEnd: 0, grace: 1, fireMid: -1, fireAfter: 19, zone: 3, warn: [] },
-  mid: { jp: 'ふつう', sub: 'シーズン途中の<wbr>解任は<wbr>なし。<wbr>J2降格か、<wbr>目標を<wbr>大きく<wbr>下回る<wbr>シーズンが<wbr>続くと<wbr>シーズン終了時に<wbr>解任。', match: 1.6, met: 20, near: 0, nearBand: 3, perPos: 4, missMax: 16, keep: 0.6, fireEnd: 10, grace: 1, fireMid: -1, fireAfter: 15, zone: 4, warn: [30, 16] },
+  mid: { jp: 'ふつう', sub: 'シーズン途中の<wbr>解任は<wbr>なし。<wbr>J2降格か、<wbr>目標を<wbr>大きく<wbr>下回る<wbr>シーズンが<wbr>続くと<wbr>シーズン終了時に<wbr>解任。', match: 1.6, met: 20, near: 0, nearBand: 3, perPos: 4, missMax: 16, keep: 0.6, fireEnd: 7, grace: 1, fireMid: -1, fireAfter: 15, zone: 4, warn: [30, 16] },
   hard: { jp: 'きびしい', sub: '1試合ごとの<wbr>評価が<wbr>大きく、<wbr>目標未達なら<wbr>すぐ<wbr>解任も<wbr>ある<wbr>（以前のルール）。', match: 3.2, met: 20, near: -5, nearBand: 3, perPos: 0, missMax: 25, keep: 1, fireEnd: 15, grace: 0, fireMid: 8, fireAfter: 10, zone: 99, warn: [30, 16] },
 };
 const BOARD = BOARD_LV.mid;  // overridable in tests (hard = the rules before 2026-10-12)
