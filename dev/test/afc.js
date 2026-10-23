@@ -59,7 +59,7 @@ const fxOf = (S, cup, cr) => S.fixtures.filter(f => f.cup === cup && (cr == null
 // ---------- a new game: the 2026/27 draw ----------
 let S = E.newGame(DATA, 'kashima', 'T', '2026-08-07');
 {
-  ok(S.v === 18 && E.afcOn(S), 'v18, S.afc');
+  ok(S.v >= 18 && E.afcOn(S), 'v18+, S.afc');
   ok(S.afc.jp.d.join() === 'kashima,kobe,kashiwa,kyoto' && S.afc.jp.ps.join() === 'gosaka' && S.afc.jp.t.join() === 'machida', 'Japan 2026/27');
   const ps = fxOf(S, 'acle', 0);
   ok(ps.length === 4 && ps.every(f => f.date === '2026-08-11'), 'four preliminary-stage matches on 8/11');
@@ -199,7 +199,7 @@ function D2(d) { return E.D ? E.D.add(d, 2) : d; }
   for (const c of Object.values(T.clubs)) delete c.arec;
   const old = JSON.parse(JSON.stringify(T));
   E.migrate(old, DATA);
-  ok(old.v === 18 && E.afcOn(old), 'old save: v18, AFC');
+  ok(old.v >= 18 && E.afcOn(old), 'old save: v18+, AFC');
   ok(old.fixtures.filter(f => E.isAfc(f) && f.date < old.date).every(f => f.played), 'old save: the matches before today played');
   ok(fxOf(old, 'acle', 1).length === 128 && fxOf(old, 'acl2', 0).length === 96, 'old save: the stages drawn');
   ok(old.news.some(n => /アジアの大会/.test(n.text)), 'old save: the news');

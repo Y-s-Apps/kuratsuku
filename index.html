@@ -1791,7 +1791,30 @@ function migrate(S, DATA) {
       news(S, `アジアの大会（${CUPS.acle.full}・${CUPS.acl2.full}）が始まった。${mine.length ? `${S.clubs[S.my].short}は${mine.map(x => x.jp).join('・')}。` : ''}${S.date > S.afc.d.ps ? 'ここまでの試合は結果だけ反映した。' : ''}${moved ? '日程が近いJリーグの試合は移した。' : ''}`, 'big');
     }
   }
-  S.v = Math.max(S.v || 1, 18);
+  // v19 (2026-10-24): the table counts league matches only (table() above). The season under way is looked at again with the
+  // right table: a contract on the place that the wrong table had failed is paid if it is met; the title, if it was "won" on
+  // cup points, isn't won yet (and one now won is celebrated). What the old table had decided before (past seasons, bonuses
+  // already paid) stays.
+  if ((S.v || 1) < 19 && S.fixtures && S.fixtures.length && !S.seasonEnd && S.order && S.order.includes(S.my) && !S.fired) {
+    const both = f => f.cup && f.played && S.order.includes(f.h) && S.order.includes(f.a);
+    if (S.fixtures.some(both)) {
+      if (sponOn(S)) {
+        const back = S.spon.deals.filter(d => d.k === 'rank' && d.st === 'fail' && sponNow(S, { ...d, st: 'run' }).st === 'done');
+        for (const d of back) { d.st = 'run'; delete d.dd; }
+        if (back.length) sponCheck(S);
+      }
+      const t = table(S);
+      if (S.titleWon === S.season && !titleClinched(S, t)) {
+        delete S.titleWon;
+        if (S.cele) S.cele = S.cele.filter(x => !(x.k === 'j1' && x.season === S.season));
+      } else if (S.titleWon === S.season) {
+        const me = t[0], ce = (S.cele || []).find(x => x.k === 'j1' && x.season === S.season);   // not shown yet: the right numbers
+        if (ce) Object.assign(ce, { pts: me.pts, w: me.w, dr: me.d, l: me.l, gf: me.gf, ga: me.ga, second: t[1].id, gap: me.pts - t[1].pts });
+      } else checkTitle(S);
+      news(S, '順位表を直しました。これまでJ1どうしのカップ戦・ACLの試合も数えていたので、試合数と勝点が多いクラブがありました。今はリーグ戦だけです。', 'info');
+    }
+  }
+  S.v = Math.max(S.v || 1, 19);
   return S;
 }
 // old saves: the season's unplayed league rounds go to the real 2026/27 dates (a round whose date has passed goes to the
@@ -1988,7 +2011,7 @@ function newGame(DATA, clubId, managerName, todayISO) {
   }
   addAbroad(S, DATA);
   afcData(DATA);
-  S.v = 18; S.presV = 4; S.presets = []; S.nt = { done: {}, res: [], log: [] };
+  S.v = 19; S.presV = 4; S.presets = []; S.nt = { done: {}, res: [], log: [] };
   secOf(S).f0 = S.clubs[clubId].funds;
   for (const p of squad(S, clubId)) track(S, p);
   for (const id of S.order) autoLineup(S, id);
@@ -2139,10 +2162,12 @@ function genFixtures(order, round1, sy) {
 }
 
 /* ---------- table ---------- */
+// the J1 table: league matches only. Until 2026-10-24 it also counted the cup and AFC matches between two J1 clubs (天皇杯,
+// Lカップ, ACL — they are in S.fixtures with f.cup), so clubs had 39〜47 games and points from cup wins.
 function table(S) {
   const t = {}; for (const id of S.order) t[id] = { id, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, form: [] };
   for (const f of S.fixtures) {
-    if (!f.played || !t[f.h] || !t[f.a]) continue;
+    if (f.cup || !f.played || !t[f.h] || !t[f.a]) continue;
     const H = t[f.h], A = t[f.a];
     H.p++; A.p++; H.gf += f.hg; H.ga += f.ag; A.gf += f.ag; A.ga += f.hg;
     if (f.hg > f.ag) { H.w++; A.l++; H.pts += 3; H.form.push('W'); A.form.push('L'); }
@@ -2683,9 +2708,11 @@ const SPON = {
   gs: p => 0.25 + 0.4 * p,                 // the guarantee's share of the value
   pMin: 0.12, pMax: 0.92,
   // the manager's club over a season against its pre-season strength pw (power − league average): mean = a + b·pw + h·max(0,
-  // pw − 3) (a strong club pulls away), sd below / above pw 3. Fitted on 100 simulated seasons of my club (several clubs,
-  // the team picked as econ.js does; it does better than an AI club of the same strength, which rotates more). 2026-10-15
-  fit: { pts: [55.1, 2.01, 3.17, 11, 11.9], gf: [43.7, 0.63, 9.78, 11.1, 21], cs: [13.4, 0.59, -0.58, 4.4, 6.1], hl: [5.9, -0.288, -0.164, 2.4, 1.9], rank: [10.05, -1.035, 0.036, 5.4, 3.1] },
+  // pw − 3) (a strong club pulls away), sd below / above pw 3. Fitted on 96 simulated seasons of my club (12 clubs × 4
+  // seasons from a new game, the team picked as econ.js does), 2026-10-24 — with the table of league matches only (the fit of
+  // 2026-10-15 had 勝点・得点・順位 from a table that also counted the cup and AFC matches between J1 clubs, and the game
+  // had changed since: at pw 0 勝点 55 → 49, 得点 44 → 49, 無失点 13 → 10, 順位 10.1 → 11.6)
+  fit: { pts: [49.2, 2.33, 3.91, 10, 8.1], gf: [49, 2.19, 1.97, 8.1, 10.1], cs: [9.8, 0.28, 1.09, 2.8, 3], hl: [6.35, -0.39, 0.07, 2.5, 1.7], rank: [11.6, -1.08, -1.71, 5.3, 3.8] },
   u23: [25, 27, 27],                       // league starts by players 23 and under ≈ 25 + 27 × (how many start now), sd 27
   att: 0.045,                              // a season's average crowd vs the pre-season estimate: sd 4.5%
   cup: [-0.871, 0.101, 0.214],             // best four in either cup: logistic, same hinge (0.2 weak, 0.32 average, 0.55 strong, 0.8 dominant)
@@ -3618,12 +3645,17 @@ function finishMatch(S, M) {
    mathematically certain (nobody can reach my points any more), a cup one when my club wins the final. */
 function leagueLeft(S, cid) { let n = 0; for (const f of S.fixtures) if (!f.cup && !f.played && (f.h === cid || f.a === cid)) n++; return n; }
 function pushCele(S, c) { S.cele = S.cele || []; S.cele.push(c); if (S.cele.length > 6) S.cele.splice(0, S.cele.length - 6); }
+// my club is top and no one can catch it any more (or the league is over: level on points, goal difference decides —
+// before 2026-10-24 that title had no pop-up)
+function titleClinched(S, t) {
+  t = t || table(S); if (!t.length || t[0].id !== S.my) return false;
+  if (t.every(r => !leagueLeft(S, r.id))) return true;
+  return t[0].pts > Math.max(...t.slice(1).map(r => r.pts + 3 * leagueLeft(S, r.id)));
+}
 function checkTitle(S) {
   if (S.titleWon === S.season || !S.order.includes(S.my) || S.fired) return false;
-  const t = table(S); if (!t.length || t[0].id !== S.my) return false;
+  const t = table(S); if (!titleClinched(S, t)) return false;
   const me = t[0];
-  const rivalMax = Math.max(...t.slice(1).map(r => r.pts + 3 * leagueLeft(S, r.id)));
-  if (me.pts <= rivalMax) return false;
   S.titleWon = S.season;
   const left = leagueLeft(S, S.my), c = S.clubs[S.my];
   const last = S.fixtures.filter(f => !f.cup && f.played && (f.h === S.my || f.a === S.my)).sort((a, b) => b.r - a.r)[0];
@@ -6442,7 +6474,7 @@ function campJob(S) {
 const API = {
   D, jdate, FORMATIONS, ROLE, DPOS, DP_CAT, DP_JP, LEARN_MAX, PLAY_MAX, ppOf, apt, roleApt, posValues, learnRate, learnWeeks, MENTALITY, PRESS, TRAINING, FACILITY, ATTR, ATTR_SHOW, FOCUS, INTENS,
   calcOvr, roleScore, bestRoles, devPreview, migrate, weekly, power, presStars, presLabel,
-  newGame, seasonForDate, seasonLabel, squad, strength, table, position, age, ovr, value, wage, money, attrs,
+  newGame, seasonForDate, seasonLabel, squad, strength, table, titleClinched, position, age, ovr, value, wage, money, attrs,
   SPON, sponOf, sponOn, sponDeals, sponEst, sponP, sponTarget, sponOffer, sponPending, sponRec, sponPick, sponAuto, sponLook, sponStat, sponNow, sponCheck, sponMonthly, sponMonth, sponSettle, sponJob, sponText, sponShort, payMonths, attendance,
   SEC, secOf, secName, setSecName, secPost, secNotes, secSeen, secDone, secFix, secSwap, secSwapAll, secTook, secReturns, secRestore, secKeep, secMonth, bigMatch, matchStory,
   autoLineup, autoBench, benchSwap, benchRemove, lineupIssues, BENCH_SIZE, PRESET_MAX, savePreset, loadPreset, presetStatus, renamePreset, deletePreset, presetsOf, fillEmpty, clubRating, validateLineup, effective, posPenalty, available, nextComp, compOf, susIn, setSus, susList, bansOf, banHits, addBan, serveBan, banSweep, banPending, COMP_JP, CARD, RED, teamRating,
