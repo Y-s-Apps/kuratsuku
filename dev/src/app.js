@@ -316,7 +316,7 @@ function pickSave(a, b) { if (a && b) return (b.savedAt || 0) > (a.savedAt || 0)
 function presBadge(c) { const n = E.presStars(c.pres); return `<span class="stars" aria-label="クラブの格">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`; }
 function titlesText(c) {
   const t = c.titles || {}; const parts = [];
-  if (t.j1) parts.push(`J1優勝${t.j1}回`); if (t.lc) parts.push(`Lカップ${t.lc}回`); if (t.ec) parts.push(`天皇杯${t.ec}回`); if (t.acl) parts.push(`アジア制覇${t.acl}回`);
+  if (t.j1) parts.push(`J1優勝${t.j1}回`); if (t.lc) parts.push(`Lカップ${t.lc}回`); if (t.ec) parts.push(`天皇杯${t.ec}回`); if (t.acl) parts.push(`アジア制覇${t.acl}回`); if (t.acl2) parts.push(`ACL2優勝${t.acl2}回`);
   return parts.length ? parts.join('・') : '主要タイトルなし';
 }
 function stars(rank) { const n = rank <= 3 ? 5 : rank <= 7 ? 4 : rank <= 13 ? 3 : rank <= 17 ? 2 : 1; return '★'.repeat(n) + '☆'.repeat(5 - n); }
@@ -403,14 +403,14 @@ function ticket(f) {
   const H = S.clubs[f.h], A = S.clubs[f.a];
   const t = E.table(S); const opp = f.h === S.my ? f.a : f.h;
   const of = (t.find(r => r.id === opp) || { form: [] }).form.slice(-5);
-  const rk = id => { if (!inJ1(id)) return 'J2'; const r = rankOf(id); return r === '—' ? '開幕前' : r + '位'; };
+  const rk = id => { if (!inJ1(id)) return clubTag(id) || 'J2'; const r = rankOf(id); return r === '—' ? '開幕前' : r + '位'; };
   const story = storyChips(f);
   return `<section class="ticket ${f.cup ? 'cup' : ''}" aria-label="次の試合">
     <div class="ticket-top"><span>${E.fxEn(f)}</span><span>${jdw(f.date)}${f.date === S.date ? ' TODAY' : ''}</span></div>
     <div class="ticket-mid">
-      ${tside(f.h, `${rk(f.h)}・${f.neutral ? '国立' : 'HOME'}`)}
+      ${tside(f.h, `${rk(f.h)}・${f.neutral ? neutralAt(f) : 'HOME'}`)}
       <div class="tvs">VS</div>
-      ${tside(f.a, `${rk(f.a)}・${f.neutral ? '国立' : 'AWAY'}`)}
+      ${tside(f.a, `${rk(f.a)}・${f.neutral ? neutralAt(f) : 'AWAY'}`)}
     </div>
     ${story ? `<div class="ticket-story">${story}</div>` : ''}
     <div class="ticket-perf"></div>
@@ -493,7 +493,8 @@ function prow(p, ctx) {
 const POS_ORD = { GK: 0, DF: 1, MF: 2, FW: 3 };
 const inJ1 = id => S.order.includes(id);
 const pkText = f => f.pk ? `（PK ${f.pk[0]}-${f.pk[1]}）` : '';
-const venueOf = f => f.neutral ? E.NATIONAL.stadium : S.clubs[f.h].stadium;
+const venueOf = f => f.neutral ? (f.venue || E.NATIONAL.stadium) : S.clubs[f.h].stadium;
+const neutralAt = f => f.venue ? 'ジッダ' : '国立';   // a final away from both clubs: 国立 (domestic cups) / Jeddah (ACLE)
 // what makes a match special (derby, cup tie...) and who is on fire
 function storyChips(f) {
   const tags = f.hype ? f.hype.tags.slice() : [E.rivalry(S, f.h, f.a), f.cup ? E.fxLabel(f) : null].filter(Boolean);
@@ -1613,12 +1614,13 @@ function sheetSlot(i) {
 function curRound() { const nx = S.fixtures.filter(f => !f.cup && !f.played && (f.h === S.my || f.a === S.my)).sort((a, b) => a.date.localeCompare(b.date))[0]; return nx ? nx.r : 38; }
 // a cup: my status, then every round (ties, results, dates)
 function cupFxRow(f, note) {
-  const w = f.played ? E.cupWinner(f) : null;
-  return `<li><button class="fx ${f.h === S.my || f.a === S.my ? 'me' : ''}" style="width:100%" data-act="fxDetail" data-id="${f.id}"><span class="h ${w === f.h ? 'win' : ''}">${esc(S.clubs[f.h].short)}${inJ1(f.h) ? '' : '<small>J2</small>'}${kit(f.h, 'sm')}</span><span class="sc ${f.played ? '' : 'pending'}">${f.played ? `${f.hg}-${f.ag}${f.pk ? `<small>PK${f.pk[0]}-${f.pk[1]}</small>` : ''}` : jd(f.date)}</span><span class="a ${w === f.a ? 'win' : ''}">${kit(f.a, 'sm')}${esc(S.clubs[f.a].short)}${inJ1(f.a) ? '' : '<small>J2</small>'}</span></button>${note ? `<div class="fx-note">${note}</div>` : ''}</li>`;
+  const w = f.played && !f.rr ? E.cupWinner(f) : null;
+  return `<li><button class="fx ${f.h === S.my || f.a === S.my ? 'me' : ''}" style="width:100%" data-act="fxDetail" data-id="${f.id}"><span class="h ${w === f.h ? 'win' : ''}"><span class="nm">${esc(S.clubs[f.h].short)}</span>${tagSm(f.h)}${kit(f.h, 'sm')}</span><span class="sc ${f.played ? '' : 'pending'}">${f.played ? `${f.hg}-${f.ag}${f.pk ? `<small>PK${f.pk[0]}-${f.pk[1]}</small>` : ''}` : jd(f.date)}</span><span class="a ${w === f.a ? 'win' : ''}">${kit(f.a, 'sm')}<span class="nm">${esc(S.clubs[f.a].short)}</span>${tagSm(f.a)}</span></button>${note ? `<div class="fx-note">${note}</div>` : ''}</li>`;
 }
 function cupView() {
   const key = UI.lg.cup || 'ec'; const cu = S.cups && S.cups[key];
-  const seg = `<div class="seg">${Object.entries(E.CUPS).filter(([, x]) => !x.afc).map(([k, x]) => `<button data-act="cupPick" data-k="${k}" aria-pressed="${key === k}">${x.jp}</button>`).join('')}</div>`;
+  const seg = `<div class="seg">${[['ec', '天皇杯'], ['lc', 'Lカップ'], ['acl', 'ACL']].map(([k, l]) => `<button data-act="cupPick" data-k="${k}" aria-pressed="${key === k}">${l}${k === 'acl' && E.afcMy(S, S.my).some(x => !x.done) ? '<i class="segdot" aria-label="出場中"></i>' : ''}</button>`).join('')}</div>`;
+  if (key === 'acl') return seg + aclView();
   if (!cu) return seg + '<p class="fine">今季のカップ戦は開催されていません。次のシーズンから始まります。</p>';
   if (key === 'lc' && E.lcNew(cu)) return seg + lcView(cu);
   const C = E.cupNames(S, key);
@@ -1674,6 +1676,154 @@ function lcView(cu) {
   const stage = (t, body) => `<h3 class="sec-h" style="font-size:16px">${t}</h3>${body}`;
   return head + (cu.r >= 3 ? stage('プライムラウンド', prime) + stage('1stラウンド', first) : stage('1stラウンド', first) + stage('プライムラウンド', prime));
 }
+/* ACL (2026-10-23, 案B＋案C): カップ戦の「ACL」タブ. ACLE / ACL2 を切り替え（出ている方に●）、自クラブの「アジアへの道」
+   （今いる段階・賞金）、次のACLの試合、日本勢の状況、そして順位表（上位8と自クラブ、ボタンで全16クラブ・東西）と横にスクロール
+   する勝ち上がり表。ACL2 は自分の組（ボタンでほかの7組）と勝ち上がり表。海外クラブには国の札（cupFxRow・順位表）。 */
+const CC_SHORT = { KSA: 'サウジ', AUS: '豪州', UZB: 'ウズベク', TKM: 'トルクメン', TJK: 'タジク', KGZ: 'キルギス', BAN: 'バングラ', MDV: 'モルディブ', PLE: 'パレスチナ' };
+const AFC_REG = { E: '東地区', W: '西地区' };
+const AFC_RD = { PS: 'プレーオフ', LS: 'リーグステージ', GS: 'グループステージ', R16: 'ラウンド16', QF: '準々決勝', SF: '準決勝', F: '決勝' };
+const ccJp = cc => CC_SHORT[cc] || (DATA.afc && DATA.afc.assoc[cc] ? DATA.afc.assoc[cc][0] : cc);
+const ccFull = cc => (DATA.afc && DATA.afc.assoc[cc] ? DATA.afc.assoc[cc][0] : cc);
+// the small tag after a club's name: J2 / the country of an ACL club abroad (nothing for J1)
+const clubTag = id => { const c = S.clubs[id]; if (!c || inJ1(id)) return ''; return c.afc ? ccJp(c.afc.cc) : c.ab ? '' : 'J2'; };
+// (in a match row only J2: the rows are narrow, and an ACL club's country is in the tables and its sheet)
+const tagSm = id => { const t = clubTag(id); return t && !(S.clubs[id] && S.clubs[id].afc) ? `<small>${esc(t)}</small>` : ''; };
+const afcCcOf = id => S.clubs[id] && S.clubs[id].afc ? S.clubs[id].afc.cc : 'JPN';
+const afcRegOf = id => S.afc.e.E && S.afc.e.E.includes(id) ? 'E' : S.afc.e.W && S.afc.e.W.includes(id) ? 'W' : null;
+const afcGrpOf = id => { const g = Object.entries(S.afc.t.groups || {}).find(([, l]) => l.includes(id)); return g ? g[0] : null; };
+const afcVenue = f => f.venue ? f.venue.replace(/・スポーツシティ$/, '') : '';
+// a standings table: the top `cut` go through (a line under them), my club and the other Japanese clubs marked; `only`
+// keeps some rows (… for the gaps)
+function afcTbl(rows, cut, only) {
+  let html = '', prev = -1;
+  rows.forEach((r, i) => {
+    if (only && !only(i)) return;
+    if (prev >= 0 && i > prev + 1) html += `<tr class="gap"><td colspan="8">…</td></tr>`;
+    const jp = afcCcOf(r.id) === 'JPN' && r.id !== S.my, t = clubTag(r.id);
+    html += `<tr class="${i < cut ? 'z-top' : ''}${i === cut - 1 ? ' cutline' : ''} ${r.id === S.my ? 'me' : ''} ${jp ? 'jp' : ''}" data-act="team" data-id="${r.id}" tabindex="0" role="button" aria-label="${esc(S.clubs[r.id].name)}の情報"><td>${i + 1}</td><td class="club"><div>${kit(r.id, 'sm')}<span class="nm">${esc(S.clubs[r.id].short)}</span>${t ? `<em class="cc">${esc(t)}</em>` : ''}</div></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td>${r.gf - r.ga > 0 ? '+' : ''}${r.gf - r.ga}</td><td class="pts">${r.pts}</td></tr>`;
+    prev = i;
+  });
+  return `<div class="tbl-wrap"><table class="tbl afc"><thead><tr><th>#</th><th style="text-align:left">クラブ</th><th>試</th><th>勝</th><th>分</th><th>敗</th><th>得失</th><th>勝点</th></tr></thead><tbody>${html}</tbody></table></div>`;
+}
+// the stage a competition is at
+function afcStage(comp) {
+  const X = comp === 'acle' ? S.afc.e : S.afc.t, C = E.CUPS[comp];
+  if (X.champ) return `優勝 ${S.clubs[X.champ].short}`;
+  if (comp === 'acle') return C.rounds[Math.min(X.st, 5)];
+  return X.fin ? '決勝' : X.sf.E || X.sf.W ? '準決勝' : X.qf.E || X.qf.W ? '準々決勝' : X.r16.E || X.r16.W ? 'ラウンド16' : 'グループステージ';
+}
+// where a club is: 「リーグステージ 東地区 4位」「G組 2位」「準々決勝 勝ち残り」「ベスト8」…
+function afcWhere(cid, comp, short) {
+  const m = E.afcMy(S, cid).find(x => x.comp === comp); if (!m) return null;
+  if (m.done) return m.st === 'W' ? '優勝' : m.st === 'F' ? '準優勝' : E.AFC_ST[m.st] + (['LS', 'GS', 'PS'].includes(m.st) ? '敗退' : '');
+  if (comp === 'acle' && S.afc.e.st === 0) return short ? 'プレーオフ' : 'プレーオフ（1試合）';
+  if (comp === 'acle' && m.st === 'LS' && !S.afc.e.r16[afcRegOf(cid)]) { const r = E.afcTable(S, 'acle', afcRegOf(cid)), i = r.findIndex(x => x.id === cid) + 1; return short ? `${AFC_REG[afcRegOf(cid)][0]}${i}位` : `リーグステージ ${AFC_REG[afcRegOf(cid)]} ${i}位`; }
+  if (comp === 'acl2' && m.st === 'GS') { const g = afcGrpOf(cid); if (g) { const r = E.afcTable(S, 'acl2', g); return `${short ? '' : 'グループステージ '}${g}組 ${r.findIndex(x => x.id === cid) + 1}位`; } }
+  return `${AFC_RD[m.st] || ''} 勝ち残り`;
+}
+// a knockout bracket that scrolls sideways: columns of ties ({a, b, ga, gb, w, pk}); an empty tie is 「未定」
+function afcBracket(cols) {
+  const side = (t, id, g) => id ? `<div class="bk-t ${t.w === id ? 'w' : t.w ? 'l' : ''} ${id === S.my ? 'me' : ''}">${kit(id, 'sm')}<span class="nm">${esc(S.clubs[id].short)}</span><b>${g == null ? '' : g}</b></div>` : '<div class="bk-t tbd"><span class="nm">未定</span></div>';
+  const box = t => `<button class="bk-m" ${t.f ? `data-act="fxDetail" data-id="${t.f}"` : 'disabled'}>${side(t, t.a, t.ga)}${side(t, t.b, t.gb)}${t.pk ? '<i class="bk-pk">PK</i>' : ''}</button>`;
+  return `<div class="bk-wrap"><div class="bk" style="grid-template-columns:repeat(${cols.length},128px)">${cols.map((c, i) => `<div class="bk-col${i >= 2 ? ' join' : ''}${i === cols.length - 1 ? ' fin' : ''}"><div class="bk-h">${c.t}<small>${c.s}</small></div>${c.ties.concat(Array(Math.max(0, c.n - c.ties.length)).fill({})).map(box).join('')}</div>`).join('')}</div></div>`;
+}
+const afcTie = f1 => { const f2 = S.fixtures.find(x => x.tie === f1.tie && x.leg === 2), ag = E.tieAgg(S, f1), w = f2 && f2.played ? E.cupWinner(f2) : null; return { a: f2 ? f2.h : f1.a, b: f2 ? f2.a : f1.h, ga: f2 && f2.played ? (ag[f2.h] || 0) : null, gb: f2 && f2.played ? (ag[f2.a] || 0) : null, w, pk: f2 && f2.pk, f: (f2 && f2.played ? f2 : f1).id }; };
+const afcOne = f => ({ a: f.h, b: f.a, ga: f.played ? f.hg : null, gb: f.played ? f.ag : null, w: f.played ? E.cupWinner(f) : null, pk: f.pk, f: f.id });
+const afcFxs = (cup, cr, filt) => S.fixtures.filter(f => f.cup === cup && f.cr === cr && (!filt || filt(f)));
+const afcDd = (a, b) => `${jd(a)}・${jd(b)}`;
+function aclBracketE() {
+  const d = S.afc.d, r16 = reg => afcFxs('acle', 2, f => f.leg === 1 && f.reg === reg).map(afcTie);
+  const bySlot = cr => afcFxs('acle', cr).sort((a, b) => a.slot - b.slot).map(afcOne);
+  return afcBracket([{ t: 'R16 東', s: afcDd(d.r16.E[0], d.r16.E[1]), ties: r16('E'), n: 4 }, { t: 'R16 西', s: afcDd(d.r16.W[0], d.r16.W[1]), ties: r16('W'), n: 4 }, { t: '準々決勝', s: afcDd(d.qf[0], d.qf[1]), ties: bySlot(3), n: 4 }, { t: '準決勝', s: afcDd(d.sf[0], d.sf[1]), ties: bySlot(4), n: 2 }, { t: '決勝', s: `${jd(d.f)} ジッダ`, ties: bySlot(5), n: 1 }]);
+}
+function aclBracket2() {
+  const d = S.afc.d.t, ties = (cr, reg) => afcFxs('acl2', cr, f => f.leg === 1 && (!reg || f.reg === reg)).map(afcTie);
+  return afcBracket([{ t: 'R16 東', s: afcDd(d.r16.E[0], d.r16.E[1]), ties: ties(1, 'E'), n: 4 }, { t: 'R16 西', s: afcDd(d.r16.W[0], d.r16.W[1]), ties: ties(1, 'W'), n: 4 }, { t: '準々決勝', s: '東・西', ties: ties(2, 'E').concat(ties(2, 'W')), n: 4 }, { t: '準決勝', s: '東・西', ties: ties(3, 'E').concat(ties(3, 'W')), n: 2 }, { t: '決勝', s: jd(d.f), ties: afcFxs('acl2', 4).map(afcOne), n: 1 }]);
+}
+// 「アジアへの道」: my club in this competition — where it is, the steps (chalk dots), the prize money so far
+function aclRoad(comp) {
+  const m = E.afcMy(S, S.my).find(x => x.comp === comp); if (!m) return '';
+  const steps = comp === 'acle' ? [['PS', 'プレーオフ'], ['LS', 'リーグ<br>ステージ'], ['R16', 'ラウンド16'], ['QF', '準々決勝'], ['SF', '準決勝'], ['F', '決勝']] : [['GS', 'グループ'], ['R16', 'ラウンド16'], ['QF', '準々決勝'], ['SF', '準決勝'], ['F', '決勝']];
+  const rank = steps.map(x => x[0]).concat('W'), cur = m.st === 'W' ? steps.length : rank.indexOf(m.st);
+  const skip = comp === 'acle' && !S.afc.jp.ps.includes(S.my) && S.afc.e.out[S.my] !== 0 ? 1 : 0;
+  const cls = i => i < skip && cur >= skip ? 'skip' : i < cur ? 'done' : i === cur ? (m.done ? 'out' : 'now') : '';
+  const nx = S.fixtures.filter(f => f.cup === comp && !f.played && (f.h === S.my || f.a === S.my)).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const sub = m.done ? (m.st === 'W' ? 'アジアの頂点に立った' : '今季の挑戦は終わった')
+    : comp === 'acle' && m.st === 'PS' ? '勝てばリーグステージ、負ければACL2へ'
+    : m.st === 'LS' && !S.afc.e.r16.E ? '各地区の上位8がラウンド16へ' : m.st === 'GS' && !S.afc.t.r16.E ? '各組の上位2がラウンド16へ'
+    : nx ? `次は${esc(E.CUPS[comp].rounds[nx.cr])}（${jdw(nx.date)}）` : '次のラウンドの組み合わせを待っている';
+  const pz = (S.afc.pz || {})[S.my] || 0;
+  return `<section class="card road-card"><div class="row"><div class="eyebrow">アジアへの道・${E.seasonLabel(S.season)}</div><span class="spacer"></span><span class="chip acc">${E.CUPS[comp].jp}</span></div>
+    <div class="row" style="gap:12px">${kitTag(S.my, S.clubs[S.my], 'lg')}<div style="min-width:0"><b class="road-st">${esc(afcWhere(S.my, comp))}</b><div class="small muted">${sub}${pz ? `・賞金 計${E.money(pz)}` : ''}</div></div></div>
+    <ol class="road">${steps.map(([, n], i) => `<li class="${cls(i)}"><i></i><span>${n}</span></li>`).join('')}</ol></section>`;
+}
+// my next ACL match: the opponent, its country, titles and strength next to mine
+function aclNext(comp) {
+  const nx = S.fixtures.filter(f => f.cup === comp && !f.played && (f.h === S.my || f.a === S.my)).sort((a, b) => a.date.localeCompare(b.date))[0];
+  if (!nx) return '';
+  const op = nx.h === S.my ? nx.a : nx.h, oc = S.clubs[op], gap = E.power(S, op) - E.power(S, S.my);
+  const ti = [oc.afc && oc.afc.lg ? `国内リーグ優勝${oc.afc.lg}回` : '', oc.titles && oc.titles.acl ? `アジア制覇${oc.titles.acl}回` : ''].filter(Boolean).join('・');
+  return `<section class="card road-next"><div class="row"><div class="eyebrow">次のACL</div><span class="spacer"></span><b class="small">${jdw(nx.date)}・${nx.neutral ? 'ジッダ' : nx.h === S.my ? 'ホーム' : 'アウェイ'}</b></div>
+    <ul class="list">${cupFxRow(nx, esc(E.roundName(nx)))}</ul>
+    <p class="fine" style="margin:0"><b>${esc(oc.name)}</b>（${esc(oc.afc ? ccFull(oc.afc.cc) : '日本')}）。${ti ? ti + '。' : ''}${gap >= 2 ? '格上の相手。' : gap <= -2 ? '格下の相手。' : '力は互角。'}クラブの格 ${presBadge(oc)}</p>
+    <button class="btn ghost block" data-act="team" data-id="${op}" style="min-height:40px">${esc(oc.short)}を詳しく見る</button></section>`;
+}
+// 日本勢: the six Japanese clubs (ACLE and ACL2) and where each is
+function aclJapan() {
+  const jp = [...S.afc.jp.d, ...S.afc.jp.ps, ...S.afc.jp.t];
+  const row = id => {
+    const m = E.afcMy(S, id), a = m.find(x => !x.done) || m[m.length - 1]; if (!a) return '';
+    const w = afcWhere(id, a.comp, true), out = a.done && a.st !== 'W';
+    return `<li class="${id === S.my ? 'me' : ''}"><button data-act="team" data-id="${id}">${kit(id, 'sm')}<b>${esc(S.clubs[id].short)}</b><span class="spacer"></span><span class="chip ${out ? '' : 'acc'}">${E.CUPS[a.comp].jp} ${esc(w)}</span></button></li>`;
+  };
+  return `<section class="card"><div class="row"><div class="eyebrow">日本勢</div><span class="spacer"></span><small class="muted">${jp.length}クラブ</small></div><ul class="jplist">${jp.map(row).join('')}</ul></section>`;
+}
+function aclView() {
+  const A = S.afc;
+  if (!A || A.s !== S.season) return '<p class="fine">今季のACLはありません。次のシーズンから始まります。</p>';
+  const st = UI.lg.af || (UI.lg.af = {});
+  const mine = E.afcMy(S, S.my), live = mine.find(x => !x.done) || mine[mine.length - 1];
+  const comp = st.comp || (live ? live.comp : 'acle'), C = E.CUPS[comp], PZ = DATA.afc.prize[comp];
+  const cseg = `<div class="seg sm2">${['acle', 'acl2'].map(k => `<button data-act="afcComp" data-k="${k}" aria-pressed="${comp === k}">${E.CUPS[k].jp}${mine.some(x => x.comp === k) ? '<i class="segdot" aria-label="出場"></i>' : ''}</button>`).join('')}</div>`;
+  const inIt = mine.some(x => x.comp === comp);
+  const head = inIt ? aclRoad(comp) : `<section class="card cuphead"><div class="row"><div class="eyebrow">${E.seasonLabel(S.season)} ${C.full}</div><span class="spacer"></span><span class="chip">${esc(afcStage(comp))}</span></div>
+    <div class="row"><b>${esc(S.clubs[S.my].short)}</b><span class="chip">不参加</span><span class="spacer"></span><small class="muted">優勝賞金 ${E.money(PZ.champ)}</small></div>
+    <p class="fine" style="margin:0">${comp === 'acle' ? 'J1の上位3クラブはリーグステージから、4・5位はプレーオフから。東西16クラブずつのリーグステージ（別の組の8クラブと1試合ずつ）→ 各地区の上位8がラウンド16 → 準々決勝からはジッダで一発勝負。' : '天皇杯の優勝クラブが出場。東西4組ずつのグループステージ（ホーム＆アウェイ）→ 各組の上位2がラウンド16 → 準々決勝・準決勝はホーム＆アウェイ → 決勝は一発勝負。'}</p></section>`;
+  const top = cseg + head + (inIt ? aclNext(comp) : '') + aclJapan();
+  if (comp === 'acle') {
+    const E2 = A.e;
+    if (E2.st === 0) {
+      const ps = afcFxs('acle', 0);
+      return top + `<h3 class="sec-h">プレーオフ<small>${jdw(A.d.ps)}・一発勝負</small></h3><ul class="list">${ps.map(f => cupFxRow(f, AFC_REG[f.reg])).join('')}</ul><p class="fine" style="margin:0">勝ったクラブはリーグステージへ、負けたクラブはACL2へ。リーグステージの組み合わせはプレーオフのあとに決まります。</p>`;
+    }
+    const reg = st.reg || afcRegOf(S.my) || 'E', t = E.afcTable(S, 'acle', reg), me = t.findIndex(r => r.id === S.my);
+    const ko = !!(E2.r16.E || E2.r16.W);
+    const md = Math.max(0, ...afcFxs('acle', 1, f => f.reg === reg && f.played).map(f => f.md));
+    const tbl = `<h3 class="sec-h">リーグステージ ${AFC_REG[reg]}<small>${md >= 8 ? '最終順位' : md ? `第${md}節まで` : `第1節 ${jd(A.d.md[reg][0][0])}`}</small></h3>${st.all ? `<div class="seg sm2">${['E', 'W'].map(r => `<button data-act="afcReg" data-k="${r}" aria-pressed="${reg === r}">${AFC_REG[r]}</button>`).join('')}</div>` : ''}${afcTbl(t, 8, st.all ? null : i => i < 8 || (me >= 0 && Math.abs(i - me) <= 1))}
+      <button class="btn ghost block" data-act="afcAll" style="min-height:40px">${st.all ? '上位だけにする' : '全16クラブ・東西を見る'}</button>`;
+    const bk = `<h3 class="sec-h">勝ち上がり<small>左右にスクロール</small></h3>${aclBracketE()}`;
+    const note = '<p class="fine" style="margin:0">各地区の上位8がラウンド16（ホーム＆アウェイ）へ。準々決勝からはサウジアラビア・ジッダで一発勝負。</p>';
+    return top + (ko ? bk + tbl : tbl + note);
+  }
+  const T = A.t;
+  if (T.st === 0) return top + `<p class="fine">グループステージの組み合わせは、ACLEのプレーオフ（${jdw(A.d.ps)}）のあとに決まります。</p>`;
+  const g = st.grp || afcGrpOf(S.my) || afcGrpOf(A.jp.t[0]) || 'E';
+  const ko = !!(T.r16.E || T.r16.W);
+  const groups = st.all2 ? Object.keys(T.groups).sort((a, b) => (a === g ? -1 : b === g ? 1 : a.localeCompare(b))) : [g];
+  const gs = `<h3 class="sec-h">グループステージ<small>${st.all2 ? '全8組' : `${g}組・${g < 'E' ? '西' : '東'}`}</small></h3>${groups.map(n => `${st.all2 ? `<div class="eyebrow" style="margin:4px 0 0">${n}組<small class="muted">・${n < 'E' ? '西' : '東'}</small></div>` : ''}${afcTbl(E.afcTable(S, 'acl2', n), 2)}`).join('')}
+    <button class="btn ghost block" data-act="afcAll2" style="min-height:40px">${st.all2 ? `${g}組だけにする` : 'ほかの7組を見る'}</button>`;
+  const bk = `<h3 class="sec-h">勝ち上がり<small>左右にスクロール</small></h3>${aclBracket2()}`;
+  return top + (ko ? bk + gs : gs + '<p class="fine" style="margin:0">各組の上位2がラウンド16へ。準々決勝・準決勝も東西それぞれでホーム＆アウェイ、決勝は一発勝負。</p>');
+}
+// an ACL club abroad / a Japanese club with an AFC record: this season, the titles, the record since 2023/24
+function teamAfc(cid) {
+  const c = S.clubs[cid], rec = Object.entries(c.arec || {}).sort((a, b) => b[0].localeCompare(a[0]));
+  if (!c.afc && !rec.length) return '';
+  const rows = rec.map(([k, st]) => { const y = 2000 + parseInt(k, 10), e = k.endsWith('E'); return `<li><span>${E.seasonLabel(y)}</span><b>${e ? (y >= 2024 ? 'ACLE' : 'ACL') : (y >= 2024 ? 'ACL2' : 'AFCカップ')}</b><span class="chip ${st === 'W' ? 'ok' : st === 'F' || st === 'SF' ? 'acc' : ''}">${E.AFC_ST[st]}</span></li>`; }).join('');
+  const now = S.afc && S.afc.s === S.season ? E.afcMy(S, cid).map(m => `${E.CUPS[m.comp].jp} ${afcWhere(cid, m.comp, true)}`).join('・') : '';
+  const box = c.afc ? `<div class="team-rank afcr"><div><small>今季</small><b class="rec">${esc(now || '—')}</b></div><div><small>国内リーグ</small><b>${c.afc.lg}<i>回</i></b></div><div><small>アジア制覇</small><b>${(c.titles.acl || 0)}<i>回</i></b></div></div>` : '';
+  return `${box}${rows ? `<div><div class="eyebrow" style="margin-bottom:6px">アジアの戦績（2023/24〜）</div><ul class="afcrec">${rows}</ul></div>` : ''}`;
+}
 function viewLeague() {
   const v = UI.lg.view; let body = '';
   if (v === 'table') {
@@ -1710,10 +1860,15 @@ function sheetTeam(cid, tab, back) {
   sheetState = { type: 'team', id: cid, tab, back: back || null };
   const t = E.table(S); const ri = t.findIndex(r => r.id === cid); const row = ri >= 0 ? t[ri] : null;
   const j1 = inJ1(cid);
-  const head = `<div class="team-head">${kitTag(cid, c, 'lg')}<div style="min-width:0"><div class="eyebrow">${esc(c.area || '')}・${j1 ? 'J1' : c.ab ? esc(c.ab.lg) : 'J2'}${c.coach ? `・監督 ${esc(c.coach)}` : ''}</div><h2>${esc(c.name)}</h2></div></div>`;
-  const tabs = `<div class="seg" role="tablist">${[['info', '概要'], ['squad', `選手（${E.squad(S, cid).length}人）`]].map(([k, l]) => `<button data-act="teamTab" data-k="${k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div>`;
+  const head = `<div class="team-head">${kitTag(cid, c, 'lg')}<div style="min-width:0"><div class="eyebrow">${c.afc ? `${esc(ccFull(c.afc.cc))}・AFC ${AFC_REG[c.afc.reg]}` : `${esc(c.area || '')}・${j1 ? 'J1' : c.ab ? esc(c.ab.lg) : 'J2'}`}${c.coach ? `・監督 ${esc(c.coach)}` : ''}</div><h2>${esc(c.name)}</h2></div></div>`;
+  const sqData = !E.squad(S, cid).length && c.afc && S.season === 2026 ? (DATA.afc.squads[cid] || []) : [];   // an ACL club abroad not met yet: its real squad, to look at
+  const tabs = `<div class="seg" role="tablist">${[['info', '概要'], ['squad', `選手（${E.squad(S, cid).length || sqData.length}人）`]].map(([k, l]) => `<button data-act="teamTab" data-k="${k}" aria-pressed="${tab === k}">${l}</button>`).join('')}</div>`;
   let body = '';
-  if (tab === 'squad') {
+  if (tab === 'squad' && c.afc && !E.squad(S, cid).length) {
+    const ps = sqData.slice().sort((a, b) => (POS_ORD[a.pos] - POS_ORD[b.pos]) || (DP_ORD(a) - DP_ORD(b)) || b.ovr - a.ovr);
+    body = ps.length ? `<ul class="list">${ps.map(p => `<li><div class="prow"><span class="no">${p.num}</span>${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>${E.age(p, S.date)}歳 ${natChip(p)}</span></span><span class="rt"><span class="ovr ${oc(p.ovr)}">${E.ovr(p)}</span></span></div></li>`).join('')}</ul>
+      <p class="fine" style="margin:0">2026/27シーズンの登録選手。日本のクラブとの対戦が決まると、詳しい情報が見られます。</p>` : '<p class="fine">日本のクラブとの対戦が決まると、選手が分かります。</p>';
+  } else if (tab === 'squad') {
     const ps = E.squad(S, cid).sort((a, b) => (POS_ORD[a.pos] - POS_ORD[b.pos]) || (DP_ORD(a) - DP_ORD(b)) || b.ovr - a.ovr);
     const xi = new Set(c.tac.xi);
     body = `<ul class="list">${ps.map(p => `<li><button class="prow" data-act="teamPlayer" data-id="${p.id}"><span class="no">${p.num}</span>${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>${E.age(p, S.date)}歳 ${natChip(p)}${xi.has(p.id) ? '<span class="chip ok">主力</span>' : ''}${p.inj > 0 ? '<span class="chip warn">負傷</span>' : ''}${p.st.g ? `<span class="chip">${p.st.g}得点</span>` : ''}</span></span><span class="rt"><span class="ovr ${oc(p.ovr)}">${E.ovr(p)}</span></span></button></li>`).join('')}</ul>
@@ -1724,8 +1879,9 @@ function sheetTeam(cid, tab, back) {
       const gd = row.gf - row.ga;
       parts.push(`<div class="team-rank"><div><small>順位</small><b>${row.p ? `${ri + 1}<i>位</i>` : '—'}</b></div><div><small>勝点</small><b>${row.pts}</b></div><div><small>勝-分-敗</small><b class="rec">${row.w}-${row.d}-${row.l}</b></div><div><small>得失点</small><b>${gd > 0 ? '+' : ''}${gd}</b></div></div>
         <div class="row small muted">直近の結果 <span class="formline">${formChips(row.form.slice(-5))}</span><span class="spacer"></span>開幕前予想 ${c.pred || '—'}位</div>`);
-    } else parts.push(`<p class="small muted" style="margin:0">${c.ab ? `${esc(c.ab.lg)}のクラブ` : 'J2のクラブ'}です。${S.cups && S.cups.ec && S.cups.ec.alive.includes(cid) ? '天皇杯を勝ち残っています。' : ''}</p>`);
-    if (cid !== S.my && !c.ab) {
+    } else if (!c.afc) parts.push(`<p class="small muted" style="margin:0">${c.ab ? `${esc(c.ab.lg)}のクラブ` : 'J2のクラブ'}です。${S.cups && S.cups.ec && S.cups.ec.alive.includes(cid) ? '天皇杯を勝ち残っています。' : ''}</p>`);
+    if (c.afc) parts.push(teamAfc(cid));
+    if (cid !== S.my && !c.ab && E.squad(S, cid).length) {
       const me = E.clubRating(S, S.my), op = E.clubRating(S, cid);
       const bar = (lab, a, b) => { const mx = Math.max(a, b, 1); return `<div class="cmp"><b class="l">${a.toFixed(0)}</b><span class="bar bl"><i style="width:${Math.max(8, 100 - (mx - a) * 9)}%;background:var(--accent-bg)"></i></span><span class="lab">${lab}</span><span class="bar"><i style="width:${Math.max(8, 100 - (mx - b) * 9)}%;background:var(--muted)"></i></span><b>${b.toFixed(0)}</b></div>`; };
       const gap = E.power(S, cid) - E.power(S, S.my);
@@ -1751,8 +1907,11 @@ function sheetTeam(cid, tab, back) {
     const best = sq.slice().sort((a, b) => b.ovr - a.ovr).slice(0, 5);
     const prow2 = (p, note) => `<li><button class="prow" data-act="teamPlayer" data-id="${p.id}"><span class="no">${p.num}</span>${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>${note}${p.hot ? '<span class="chip fire">燃えている</span>' : ''}${p.inj > 0 ? `<span class="chip warn">負傷 ${p.inj}日</span>` : ''}${susChip(p)}</span></span><span class="rt"><span class="ovr ${oc(p.ovr)}">${E.ovr(p)}</span></span></button></li>`;
     if (scorers.length) parts.push(`<div><div class="eyebrow" style="margin-bottom:6px">得点源</div><ul class="list">${scorers.map(p => prow2(p, `${p.st.g}得点 ${p.st.a}アシスト・${p.st.apps}試合`)).join('')}</ul></div>`);
-    parts.push(`<div><div class="eyebrow" style="margin-bottom:6px">主力選手</div><ul class="list">${best.map(p => prow2(p, `${E.age(p, S.date)}歳 ${natChip(p)}`)).join('')}</ul></div>`);
-    if (!c.ab) parts.push(`<dl class="kv"><dt>ホーム</dt><dd>${esc(c.stadium || '—')}</dd><dt>タイトル</dt><dd>${titlesText(c)}${c.o10 ? '・Jリーグ創設メンバー' : ''}</dd></dl>`);
+    if (best.length) parts.push(`<div><div class="eyebrow" style="margin-bottom:6px">主力選手</div><ul class="list">${best.map(p => prow2(p, `${E.age(p, S.date)}歳 ${natChip(p)}`)).join('')}</ul></div>`);
+    else if (sqData.length) parts.push(`<div><div class="eyebrow" style="margin-bottom:6px">主力選手</div><ul class="list">${sqData.slice().sort((a, b) => b.ovr - a.ovr).slice(0, 5).map(p => `<li><div class="prow"><span class="no">${p.num}</span>${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>${E.age(p, S.date)}歳 ${natChip(p)}</span></span><span class="rt"><span class="ovr ${oc(p.ovr)}">${E.ovr(p)}</span></span></div></li>`).join('')}</ul></div>`);
+    if (c.afc) parts.push(`<dl class="kv"><dt>ホーム</dt><dd>${esc(c.stadium || '—')}（${(c.cap || 0).toLocaleString('ja-JP')}人）</dd><dt>タイトル</dt><dd>${[c.afc.lg ? `国内リーグ優勝${c.afc.lg}回` : '', c.titles.acl ? `アジア制覇${c.titles.acl}回` : '', c.titles.acl2 ? `ACL2優勝${c.titles.acl2}回` : ''].filter(Boolean).join('・') || '主要タイトルなし'}</dd></dl>`);
+    else if (!c.ab) parts.push(`<dl class="kv"><dt>ホーム</dt><dd>${esc(c.stadium || '—')}</dd><dt>タイトル</dt><dd>${titlesText(c)}${c.o10 ? '・Jリーグ創設メンバー' : ''}</dd></dl>`);
+    if (!c.afc) { const af = teamAfc(cid); if (af) parts.push(af); }
     body = parts.join('');
   }
   const backBtn = back && back.type === 'pre' ? `<button class="btn ghost" data-act="teamBack">試合前の画面に戻る</button>` : '';
@@ -1830,6 +1989,7 @@ function viewClub() {
     const h = S.history;
     body = `<h3 class="sec-h">監督としての歩み</h3>${h.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>季</th><th style="text-align:left">クラブ</th><th>順位</th><th>勝点</th><th style="text-align:left">優勝</th></tr></thead><tbody>${h.map(r => `<tr><td>${r.season.slice(2)}</td><td class="club"><div>${kit(r.club, 'sm')}${esc(S.clubs[r.club].short)}</div></td><td>${r.pos}</td><td>${r.pts}</td><td class="club"><div>${esc(S.clubs[r.champ].short)}</div></td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">最初のシーズンを戦っているところです。</p>'}
       ${h.some(r => r.ec || r.lc) ? `<h3 class="sec-h">カップ戦</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>季</th><th style="text-align:left">天皇杯</th><th style="text-align:left">Lカップ</th></tr></thead><tbody>${h.filter(r => r.ec || r.lc).map(r => `<tr><td>${r.season.slice(2)}</td><td style="text-align:left">${esc(r.ec || '—')}</td><td style="text-align:left">${esc(r.lc || '—')}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${h.some(r => r.afc) ? `<h3 class="sec-h">ACL</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>季</th><th style="text-align:left">クラブ</th><th style="text-align:left">成績</th></tr></thead><tbody>${h.filter(r => r.afc).map(r => `<tr><td>${r.season.slice(2)}</td><td class="club"><div>${kit(r.club, 'sm')}${esc(S.clubs[r.club] ? S.clubs[r.club].short : '')}</div></td><td style="text-align:left">${esc(r.afc)}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <h3 class="sec-h">今季のクラブ記録</h3>${clubRecords()}${ntRecords()}`;
   }
   return `${body}<div class="subnav"><div class="seg fit">${[['main', '経営'], ['town', 'ホームタウン'], ['market', '移籍市場'], ['records', '記録']].map(([k, l]) => `<button data-act="clView" data-k="${k}" aria-pressed="${v === k}">${l}</button>`).join('')}</div></div>`;
@@ -1952,7 +2112,7 @@ function sheetPrematch(fid) {
   const hotOpp = hy.hot.filter(h => h.side !== mySide && S.players[h.pid]);
   const gap = E.power(S, opp) - E.power(S, S.my);
   const fire = hotMine.length || hotOpp.length ? `<div class="card fire"><div class="eyebrow">燃えている選手</div><ul>${hotMine.map(h => { const p = S.players[h.pid]; const w = where(p.id); return `<li><b>${esc(p.name)}</b>（${esc(h.why)}）<span class="chip ${w === '先発' ? 'ok' : 'warn'}">${w}</span></li>`; }).join('')}${hotOpp.map(h => `<li class="muted">相手の<b>${esc(S.players[h.pid].name)}</b>も燃えている（${esc(h.why)}）</li>`).join('')}</ul>${hotMine.some(h => where(h.pid) !== '先発') ? '<p class="fine" style="margin:6px 0 0">燃えている選手はこの試合だけ大きく力が上がります。先発させるなら戦術画面で。</p>' : ''}</div>` : '';
-  openSheet(`<div class="eyebrow">${E.fxLabel(f)}・${jdw(f.date)}・${f.neutral ? '国立競技場' : f.h === S.my ? 'ホーム' : 'アウェイ'}</div>
+  openSheet(`<div class="eyebrow">${E.fxLabel(f)}・${jdw(f.date)}・${f.neutral ? esc(venueOf(f)) : f.h === S.my ? 'ホーム' : 'アウェイ'}</div>
     <h2>vs ${esc(o.name)}</h2>
     ${story ? `<div class="row wrap">${story}</div>` : ''}
     ${E.sponPending(S) ? spPreLine(fid) : ''}
@@ -1978,7 +2138,7 @@ function preLink(a, b, o) {
 // the crowd to expect (pre-match): at home with the ground's seats, away at theirs, the final at 国立
 function preAtt(f) {
   const a = E.attEst(S, f); if (!a) return '';
-  const where = f.neutral ? '国立競技場' : f.h === S.my ? 'ホーム' : `${esc(S.clubs[f.h].short)}のスタジアム`;
+  const where = f.neutral ? esc(venueOf(f)) : f.h === S.my ? 'ホーム' : `${esc(S.clubs[f.h].short)}のスタジアム`;
   return `<div class="pre-att">${htIc('crowd')}<span>観客の見込み <b>約${ppl(a.n)}人</b><small>${a.full ? '満員' : `${where} ${a.cap.toLocaleString('ja-JP')}席`}${a.works && f.h === S.my ? '・増築の工事中' : ''}</small></span></div>`;
 }
 const VERDICT = { champion: 'リーグ優勝！', met: '目標達成', near: 'あと一歩', missed: '目標未達', relegated: 'J2降格' };
@@ -1988,6 +2148,7 @@ function sheetSeasonEnd() {
   openSheet(`<div class="led"><div class="ln"><span>${se.label} FINAL</span><span>${esc(S.clubs[S.my].abbr || '')}</span></div><div class="ln"><span class="big">${se.myPos}位</span><span class="big">${se.pts}pt</span></div><div class="ln"><span>${VERDICT[se.verdict]}</span><span>目標 ${esc(se.target.replace(/（.*）/, ''))}</span></div></div>
     <dl class="kv"><dt>優勝</dt><dd>${esc(S.clubs[se.champ].name)}</dd><dt>J2降格</dt><dd>${se.rel.map(id => esc(S.clubs[id].short)).join('・')}</dd><dt>順位賞金</dt><dd>${E.money(se.prize)}</dd><dt>フロントの信頼</dt><dd>${S.board}</dd></dl>
     ${se.cups ? `<dl class="kv">${Object.entries(se.cups).map(([k, x]) => `<dt>${E.CUPS[k].jp}</dt><dd>${x.champ ? `優勝 ${esc(S.clubs[x.champ].short)}` : '—'}　<span class="muted">${esc(S.clubs[S.my].short)}：${esc(x.my || '—')}</span></dd>`).join('')}</dl>` : ''}
+    ${se.afc ? `<dl class="kv">${[['acle', se.afc.acle], ['acl2', se.afc.acl2]].map(([k, x]) => `<dt>${E.CUPS[k].jp}</dt><dd>${x[0] ? `優勝 ${esc(S.clubs[x[0]].short)}${clubTag(x[0]) ? `（${esc(clubTag(x[0]))}）` : ''}` : '—'}</dd>`).join('')}${se.afc.my.length ? `<dt>${esc(S.clubs[S.my].short)}</dt><dd>${esc(se.afc.my.join('・'))}</dd>` : ''}</dl>` : ''}
     ${sponReview(se.spon)}
     <div><div class="eyebrow" style="margin-bottom:6px">得点王争い</div><ul class="list">${se.scorers.map((x, i) => `<li><div class="row" style="padding:9px 12px"><b class="tnum">${i + 1}</b>${kit(x.club, 'sm')}<span>${esc(x.name)}</span><span class="spacer"></span><b class="tnum">${x.g}点</b></div></li>`).join('')}</ul></div>
     <p class="fine">次のシーズンに進むと、ベテランの引退、ユースからの昇格、J2との入れ替えが行われます。オフシーズン（6〜8月）は移籍期間です。</p>`,
@@ -2076,7 +2237,7 @@ function sheetCele() {
   const opp = !league && S.clubs[ce.opp];
   const line = league
     ? (ce.left ? `${E.D.m(ce.d)}月${E.D.d(ce.d)}日、残り${ce.left}試合を残して優勝が決まった。` : '最後まで続いた争いを制し、頂点に立った。')
-    : `決勝で${opp ? esc(opp.name) : ''}を${ce.my}-${ce.op}${ce.pk ? `（PK ${ce.pk[0]}-${ce.pk[1]}）` : ''}で下した。`;
+    : `決勝で${opp ? esc(opp.name) : ''}を${ce.my}-${ce.op}${ce.pk ? `（PK ${ce.pk[0]}-${ce.pk[1]}）` : ''}で下した。${ce.k === 'acle' ? 'アジアの頂点に立った。' : ''}`;
   const stats = league
     ? `<div><small>勝点</small><b>${ce.pts}</b></div><div class="rec"><small>勝-分-敗</small><b class="sm">${ce.w}-${ce.dr}-${ce.l}</b></div><div><small>得失点</small><b>${ce.gf - ce.ga > 0 ? '+' : ''}${ce.gf - ce.ga}</b></div><div><small>2位と</small><b>${ce.gap}<i>差</i></b></div>`
     : `<div class="wide"><small>決勝・${esc(ce.venue || '')}</small><b class="sm">${esc(c.short)} ${ce.my}-${ce.op} ${opp ? esc(opp.short) : ''}${ce.pk ? `<i>PK ${ce.pk[0]}-${ce.pk[1]}</i>` : ''}</b></div>`;
@@ -2444,7 +2605,7 @@ function showResult() {
   const stl = (lab, a, b) => `<div class="stline"><span class="tnum">${a}</span><span>${lab}</span><span class="tnum">${b}</span></div>`;
   const mine = Object.entries(M.pm).filter(([, pm]) => pm.side === k).sort((a, b) => (b[1].final || 0) - (a[1].final || 0));
   const others = S.fixtures.filter(f => f.date === fx.date && f.id !== fx.id && f.played);
-  const agg = M.agg0 ? [M.hg + M.agg0[0], M.ag + M.agg0[1]] : null, ko = fx.cup && fx.leg !== 1;
+  const agg = M.agg0 ? [M.hg + M.agg0[0], M.ag + M.agg0[1]] : null, ko = fx.cup && fx.leg !== 1 && !fx.rr;
   const res = M.pk ? ((M.pk[0] > M.pk[1]) === (k === 'h') ? 'W' : 'L') : agg ? ((agg[0] > agg[1]) === (k === 'h') ? 'W' : 'L') : M.hg === M.ag ? 'D' : ((M.hg > M.ag) === (k === 'h') ? 'W' : 'L');
   const aggT = agg ? `<small class="muted">（2試合合計 ${k === 'h' ? agg[0] : agg[1]}-${k === 'h' ? agg[1] : agg[0]}）</small>` : '';
   const body = document.getElementById('mbody');
@@ -2759,6 +2920,10 @@ const ACT = {
   },
   lgView(d) { UI.lg.view = d.k; render(); },
   cupPick(d) { UI.lg.cup = d.k; render(); },
+  afcComp(d) { const st = UI.lg.af || (UI.lg.af = {}); st.comp = d.k; render(); },
+  afcReg(d) { (UI.lg.af || (UI.lg.af = {})).reg = d.k; render(); },
+  afcAll() { const st = UI.lg.af || (UI.lg.af = {}); st.all = !st.all; if (!st.all) st.reg = null; render(); },
+  afcAll2() { const st = UI.lg.af || (UI.lg.af = {}); st.all2 = !st.all2; render(); },
   presets() { UI.preset = {}; sheetPresets(); },
   presetSave(d) {
     const i = d.i != null ? Number(d.i) : null;

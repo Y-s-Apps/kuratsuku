@@ -12,6 +12,6 @@ for (let g = 0; g < 9000 && S.date < until; g++) {
   else if (st.stop === 'seasonEnd') break;
 }
 if (S.sec) S.sec.notes = (S.sec.notes || []).map(n => Object.assign(n, { seen: true }));
-S.inbox.forEach(y => { y.seen = true; });
+S.inbox.forEach(y => { y.seen = true; }); S.cele = [];
 process.stdout.write(JSON.stringify({ save: S }));
 console.error(S.date, 'ACLE', JSON.stringify(E.afcMy(S, S.my)), 'E table', E.afcTable(S, 'acle', 'E').slice(0, 8).map(r => r.id + r.pts).join(' '));

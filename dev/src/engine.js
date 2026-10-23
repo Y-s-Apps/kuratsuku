@@ -3912,6 +3912,7 @@ function afcClub(S, id) {
   delete c.fans; delete c.fan0; delete c.fanP;   // no supporters' model abroad
   c.afc = { cc: d.cc, reg: d.reg, en: d.en, lg: d.t.lg || 0, s: d.s, op: d.op, os: d.os };
   c.arec = recParse(d.rec);
+  delete c.arec[afcRecKey(S.season, 'acle')]; delete c.arec[afcRecKey(S.season, 'acl2')];   // this season: as it goes in the game
   return c;
 }
 // the strength a club plays at: the top 14 (an overseas club: its data, so its squad needn't exist) + what its 格 adds
@@ -4036,7 +4037,8 @@ function afcFx(S, o) {
   S.fixtures.push(f);
   return f;
 }
-const afcPay = (S, cid, v) => { const c = S.clubs[cid]; if (!c || c.afc || !v) return; c.funds += v; c.fin.prize += v; };
+// AFC prize money to a Japanese club (S.afc.pz: this season's total per club, for the screens)
+const afcPay = (S, cid, v) => { const c = S.clubs[cid]; if (!c || c.afc || !v) return; c.funds += v; c.fin.prize += v; const pz = S.afc.pz || (S.afc.pz = {}); pz[cid] = (pz[cid] || 0) + v; };
 const afcMine = (S, f) => f.h === S.my || f.a === S.my;
 const afcOpp = (S, f) => S.clubs[f.h === S.my ? f.a : f.h];
 // the season's AFC: who is in (afcJapan + the others), the dates, the preliminary stage (or straight to the draws)
@@ -4046,8 +4048,9 @@ function afcSeason(S, prev) {
   S.nextFid = Math.max(S.nextFid || 0, ...S.fixtures.map(f => f.id)) + 1;
   const jp = afcJapan(S, prev || {}), d = afcDates(sy);
   const hold = sy === 2026 ? { acle: (AFCD.clubs.find(c => / 25E:W|^25E:W/.test(c.rec)) || {}).id || null, acl2: 'gosaka' } : { acle: (prev && prev.acle) || null, acl2: (prev && prev.acl2) || null };
-  const A = S.afc = { s: sy, d, jp, hold, e: { st: 0, out: {}, champ: null, runner: null, dir: {}, r16: {} }, t: { st: 0, out: {}, champ: null, runner: null, pre: {}, r16: {}, qf: {}, sf: {} } };
+  const A = S.afc = { s: sy, d, jp, hold, pz: {}, e: { st: 0, out: {}, champ: null, runner: null, dir: {}, r16: {} }, t: { st: 0, out: {}, champ: null, runner: null, pre: {}, r16: {}, qf: {}, sf: {} } };
   afcJrec(S);
+  for (const c of Object.values(S.clubs)) if (c.arec) { delete c.arec[afcRecKey(sy, 'acle')]; delete c.arec[afcRecKey(sy, 'acl2')]; }
   const used = new Set([...jp.d, ...jp.ps, ...jp.t]), ps = [];
   if (sy === 2026) {
     const X = AFCD.s2026;
@@ -4085,7 +4088,9 @@ function afcSeason(S, prev) {
     }
   }
   for (const id of [...A.e.dir.E, ...A.e.dir.W, ...A.t.pre.E, ...A.t.pre.W, ...ps.flatMap(p => [p[0], p[1]])]) afcClub(S, id);
-  for (const [h, a, reg] of ps) afcFx(S, { cup: 'acle', cr: 0, reg, date: d.ps, h, a });
+  for (const [h, a, reg] of ps) { afcFx(S, { cup: 'acle', cr: 0, reg, date: d.ps, h, a }); afcRec(S, h, 'acle', 'PS'); afcRec(S, a, 'acle', 'PS'); }
+  for (const id of [...A.t.pre.E, ...A.t.pre.W]) afcRec(S, id, 'acl2', 'GS');
+  for (const id of [...A.e.dir.E, ...A.e.dir.W]) afcRec(S, id, 'acle', 'LS');
   const me = S.my, why = jp.why[me];
   if (jp.d.includes(me)) news(S, `${CUPS.acle.full}のリーグステージに出場（${why}）。組み合わせはプレーオフ（${jdate(d.ps, true)}）の後に決まる。`, 'big');
   else if (jp.ps.includes(me)) { const f = S.fixtures.find(x => x.cup === 'acle' && x.cr === 0 && afcMine(S, x)); news(S, `${CUPS.acle.full}のプレーオフに出場（${why}）。${f ? `${jdate(f.date, true)}に${afcOpp(S, f).name}と1試合（${f.h === me ? 'ホーム' : 'アウェイ'}）、勝てばリーグステージ、負ければACL2へ。` : ''}`, 'big'); }
@@ -4219,7 +4224,7 @@ function afcProgress(S) {
     // the draw: 1〜4 against 5〜8, a club of the same country avoided where it can be
     for (let k = 0; k < 30 && top.some((id, i) => afcCc(S, id) === afcCc(S, low[i])); k++) low = shuffle(low);
     top.forEach((id, i) => afcTie(S, { cup: 'acle', cr: 2, reg }, low[i], id, d.r16[reg]));
-    for (const id of top.concat(low)) afcPay(S, id, PE.r16);
+    for (const id of top.concat(low)) { afcRec(S, id, 'acle', 'R16'); afcPay(S, id, PE.r16); }
     E.r16[reg] = 1; changed = true;
     const f = S.fixtures.find(x => x.cup === 'acle' && x.cr === 2 && x.leg === 1 && afcMine(S, x));
     if (f) news(S, `ACLE リーグステージ ${t.findIndex(r => r.id === S.my) + 1}位でラウンド16へ。相手は${afcOpp(S, f).name}（第1戦 ${jdate(f.date, true)}・${f.h === S.my ? 'ホーム' : 'アウェイ'}）。賞金 ${money(PE.r16)}。`, 'win');
@@ -4249,6 +4254,7 @@ function afcProgress(S) {
       } else {
         const x = bys[0][0], y = bys[1][0], [h, a] = R() < 0.5 ? [x, y] : [y, x];
         afcFx(S, { cup: 'acle', cr: 5, neutral: true, venue: J[0][0], vcap: J[0][1], date: d.f, h, a });
+        afcRec(S, x, 'acle', 'F'); afcRec(S, y, 'acle', 'F');
       }
       E.st = cr + 1; changed = true;
       const f = S.fixtures.find(x => x.cup === 'acle' && x.cr === cr + 1 && afcMine(S, x));
@@ -4290,6 +4296,7 @@ function afcProgress(S) {
       for (const [, lose, f] of de.concat(dw)) { T.out[lose] = 3; if (lose === S.my) news(S, `ACL2 準決勝で敗退${afcAggTxt(S, f)}。`, 'loss'); }
       const e = de[0][0], w = dw[0][0], [h, a] = d.t.host === 'E' ? [e, w] : [w, e];
       afcFx(S, { cup: 'acl2', cr: 4, date: d.t.f, h, a });
+      afcRec(S, e, 'acl2', 'F'); afcRec(S, w, 'acl2', 'F');
       T.fin = 1; changed = true;
       if (e === S.my || w === S.my) news(S, `ACL2 決勝の相手は${S.clubs[S.my === e ? w : e].name}（${jdate(d.t.f, true)}・${h === S.my ? 'ホーム' : 'アウェイ'}）。優勝賞金は${money(PT.champ)}。`, 'big');
     }
