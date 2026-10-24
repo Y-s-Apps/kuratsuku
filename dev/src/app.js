@@ -1721,12 +1721,18 @@ function afcWhere(cid, comp, short) {
   if (comp === 'acl2' && m.st === 'GS') { const g = afcGrpOf(cid); if (g) { const r = E.afcTable(S, 'acl2', g); return `${short ? '' : 'グループステージ '}${g}組 ${r.findIndex(x => x.id === cid) + 1}位`; } }
   return `${AFC_RD[m.st] || ''} 勝ち残り`;
 }
-// a knockout bracket that scrolls sideways: columns of ties ({a, b, ga, gb, w, pk}); an empty tie is 「未定」
+// a knockout bracket that scrolls sideways: columns of ties ({a, b, ga, gb, w, pk}); an empty tie is 「未定」.
+// The headings sit in one row; each column splits its height into equal slots with the tie in the middle, so a tie
+// always sits halfway between the two ties that feed it. A column marked `tree` is fed pairwise by the one before it
+// (chalk elbows join each pair to the next tie, the decided way drawn brighter); R16 → 準々決勝 is a draw, so no lines
 function afcBracket(cols) {
   const side = (t, id, g) => id ? `<div class="bk-t ${t.w === id ? 'w' : t.w ? 'l' : ''} ${id === S.my ? 'me' : ''}">${kit(id, 'sm')}<span class="nm">${esc(S.clubs[id].short)}</span><b>${g == null ? '' : g}</b></div>` : '<div class="bk-t tbd"><span class="nm">未定</span></div>';
-  const box = t => `<button class="bk-m" ${t.f ? `data-act="fxDetail" data-id="${t.f}"` : 'disabled'}>${side(t, t.a, t.ga)}${side(t, t.b, t.gb)}${t.pk ? '<i class="bk-pk">PK</i>' : ''}</button>`;
-  return `<div class="bk-wrap"><div class="bk" style="grid-template-columns:repeat(${cols.length},128px)">${cols.map((c, i) => `<div class="bk-col${i >= 2 ? ' join' : ''}${i === cols.length - 1 ? ' fin' : ''}"><div class="bk-h">${c.t}<small>${c.s}</small></div>${c.ties.concat(Array(Math.max(0, c.n - c.ties.length)).fill({})).map(box).join('')}</div>`).join('')}</div></div>`;
+  const box = t => `<div class="bk-s${t.w ? ' dn' : ''}${t.a && t.b ? ' set' : ''}"><button class="bk-m" ${t.f ? `data-act="fxDetail" data-id="${t.f}"` : 'disabled'}>${side(t, t.a, t.ga)}${side(t, t.b, t.gb)}${t.pk ? '<i class="bk-pk">PK</i>' : ''}</button></div>`;
+  const heads = cols.map(c => `<div class="bk-h">${c.t}<small>${c.s}</small></div>`).join('');
+  const body = cols.map((c, i) => `<div class="bk-col${c.tree ? ' bk-in' : ''}${cols[i + 1] && cols[i + 1].tree ? ' bk-out' : ''}${i === cols.length - 1 ? ' fin' : ''}">${afcPad(c.ties, c.n).map(box).join('')}</div>`).join('');
+  return `<div class="bk-wrap"><div class="bk" style="grid-template-columns:repeat(${cols.length},128px)">${heads}${body}</div></div>`;
 }
+const afcPad = (ties, n) => ties.concat(Array(Math.max(0, n - ties.length)).fill({}));
 const afcTie = f1 => { const f2 = S.fixtures.find(x => x.tie === f1.tie && x.leg === 2), ag = E.tieAgg(S, f1), w = f2 && f2.played ? E.cupWinner(f2) : null; return { a: f2 ? f2.h : f1.a, b: f2 ? f2.a : f1.h, ga: f2 && f2.played ? (ag[f2.h] || 0) : null, gb: f2 && f2.played ? (ag[f2.a] || 0) : null, w, pk: f2 && f2.pk, f: (f2 && f2.played ? f2 : f1).id }; };
 const afcOne = f => ({ a: f.h, b: f.a, ga: f.played ? f.hg : null, gb: f.played ? f.ag : null, w: f.played ? E.cupWinner(f) : null, pk: f.pk, f: f.id });
 const afcFxs = (cup, cr, filt) => S.fixtures.filter(f => f.cup === cup && f.cr === cr && (!filt || filt(f)));
@@ -1734,11 +1740,11 @@ const afcDd = (a, b) => `${jd(a)}・${jd(b)}`;
 function aclBracketE() {
   const d = S.afc.d, r16 = reg => afcFxs('acle', 2, f => f.leg === 1 && f.reg === reg).map(afcTie);
   const bySlot = cr => afcFxs('acle', cr).sort((a, b) => a.slot - b.slot).map(afcOne);
-  return afcBracket([{ t: 'R16 東', s: afcDd(d.r16.E[0], d.r16.E[1]), ties: r16('E'), n: 4 }, { t: 'R16 西', s: afcDd(d.r16.W[0], d.r16.W[1]), ties: r16('W'), n: 4 }, { t: '準々決勝', s: afcDd(d.qf[0], d.qf[1]), ties: bySlot(3), n: 4 }, { t: '準決勝', s: afcDd(d.sf[0], d.sf[1]), ties: bySlot(4), n: 2 }, { t: '決勝', s: `${jd(d.f)} ジッダ`, ties: bySlot(5), n: 1 }]);
+  return afcBracket([{ t: 'R16 東', s: afcDd(d.r16.E[0], d.r16.E[1]), ties: r16('E'), n: 4 }, { t: 'R16 西', s: afcDd(d.r16.W[0], d.r16.W[1]), ties: r16('W'), n: 4 }, { t: '準々決勝', s: afcDd(d.qf[0], d.qf[1]), ties: bySlot(3), n: 4 }, { t: '準決勝', s: afcDd(d.sf[0], d.sf[1]), ties: bySlot(4), n: 2, tree: true }, { t: '決勝', s: `${jd(d.f)} ジッダ`, ties: bySlot(5), n: 1, tree: true }]);
 }
 function aclBracket2() {
   const d = S.afc.d.t, ties = (cr, reg) => afcFxs('acl2', cr, f => f.leg === 1 && (!reg || f.reg === reg)).map(afcTie);
-  return afcBracket([{ t: 'R16 東', s: afcDd(d.r16.E[0], d.r16.E[1]), ties: ties(1, 'E'), n: 4 }, { t: 'R16 西', s: afcDd(d.r16.W[0], d.r16.W[1]), ties: ties(1, 'W'), n: 4 }, { t: '準々決勝', s: '東・西', ties: ties(2, 'E').concat(ties(2, 'W')), n: 4 }, { t: '準決勝', s: '東・西', ties: ties(3, 'E').concat(ties(3, 'W')), n: 2 }, { t: '決勝', s: jd(d.f), ties: afcFxs('acl2', 4).map(afcOne), n: 1 }]);
+  return afcBracket([{ t: 'R16 東', s: afcDd(d.r16.E[0], d.r16.E[1]), ties: ties(1, 'E'), n: 4 }, { t: 'R16 西', s: afcDd(d.r16.W[0], d.r16.W[1]), ties: ties(1, 'W'), n: 4 }, { t: '準々決勝', s: '東・西', ties: afcPad(ties(2, 'E'), 2).concat(afcPad(ties(2, 'W'), 2)), n: 4 }, { t: '準決勝', s: '東・西', ties: afcPad(ties(3, 'E'), 1).concat(afcPad(ties(3, 'W'), 1)), n: 2, tree: true }, { t: '決勝', s: jd(d.f), ties: afcFxs('acl2', 4).map(afcOne), n: 1, tree: true }]);
 }
 // 「アジアへの道」: my club in this competition — where it is, the steps (chalk dots), the prize money so far
 function aclRoad(comp) {

@@ -34,6 +34,27 @@ CHECK = '''() => {
   const squash = ks.filter(e => { const r = e.getBoundingClientRect(); return Math.abs(r.width - r.height) > 1; }).map(e => { const r = e.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' ' + (e.parentElement.className || e.parentElement.tagName); });
   return { kits: ks.length, squash: squash.slice(0, 4), over: document.documentElement.scrollWidth - window.innerWidth };
 }'''
+# 勝ち上がり表のずれ（2026-10-24、ユーザーのスクショ「準決勝や決勝がずれている」）: 見出しが同じ高さ、線でつながる列（準決勝・決勝）の
+# 試合が前の列の2試合のちょうど真ん中、つなぎの線が両方の箱に届く、スクロールの終わりに余白
+BK_ALIGN = '''() => {
+  const bad = [], mid = e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; };
+  const hs = [...document.querySelectorAll('.bk-h')].map(h => Math.round(h.getBoundingClientRect().top));
+  if (new Set(hs).size !== 1) bad.push('headings ' + hs.join(','));
+  const cols = [...document.querySelectorAll('.bk-col')];
+  cols.forEach((c, i) => {
+    if (!c.classList.contains('bk-in')) return;
+    const prev = [...cols[i - 1].querySelectorAll('.bk-m')], cur = [...c.querySelectorAll('.bk-m')];
+    if (prev.length !== cur.length * 2) bad.push(`col ${i}: ${prev.length} → ${cur.length}`);
+    cur.forEach((m, k) => { const d = mid(m) - (mid(prev[2 * k]) + mid(prev[2 * k + 1])) / 2; if (Math.abs(d) > 1) bad.push(`col ${i} tie ${k} off by ${d.toFixed(1)}px`); });
+    const a = getComputedStyle(cols[i - 1].querySelector('.bk-s'), '::after'), b = getComputedStyle(c.querySelector('.bk-s'), '::before');
+    const gap = c.getBoundingClientRect().left - cols[i - 1].getBoundingClientRect().right;
+    if (Math.abs(parseFloat(a.width) + parseFloat(b.width) - gap) > 0.5) bad.push(`col ${i}: the lines do not reach (${a.width} + ${b.width} vs ${gap})`);
+  });
+  const w = document.querySelector('.bk-wrap'), wr = w.getBoundingClientRect();
+  w.scrollLeft = 99999; const end = wr.right - cols[cols.length - 1].getBoundingClientRect().right; w.scrollLeft = 0;
+  if (end < 6) bad.push('no margin after the final: ' + end.toFixed(1));
+  return { bad };
+}'''
 
 async def main(boards, sizes):
     css = font_css()
@@ -102,6 +123,10 @@ async def main(boards, sizes):
                 # 鹿島 3月: the bracket first
                 await load('k-mar'); await acl()
                 ok(await page.locator('.bk-m').count() == 15, 'k-mar: bracket 8 + 4 + 2 + 1')
+                for comp in ['acle', 'acl2']:
+                    await acl(comp); r = await page.evaluate(BK_ALIGN)
+                    ok(not r['bad'], f'k-mar {comp} {tagv}: the bracket lines up (headings in a row, a tie halfway between the two that feed it, lines that reach, a margin at the end) {r["bad"]}')
+                await acl('acle')
                 await shot('acl-k-mar-1'); await shot('acl-k-mar-2', sel='.bk-wrap')
                 await page.evaluate("document.querySelector('.bk-wrap').scrollLeft = 400"); await shot('acl-k-mar-3', sel='.bk-wrap')
                 await acl('acl2'); await shot('acl-k-mar-acl2', sel='.bk-wrap')
