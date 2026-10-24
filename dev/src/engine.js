@@ -1369,6 +1369,13 @@ function benchRemove(S, pid) {
   c.tac.bench = c.tac.bench.filter(id => id !== pid); c.tac.benchManual = true;
   return true;
 }
+// manager takes a starter out without a replacement (2026-10-24): the place is left empty (lineupIssues blocks kickoff
+// until it is filled, the secretary suggests someone) and the player goes out of the matchday squad, like benchRemove
+function xiRemove(S, i) {
+  const c = S.clubs[S.my]; const id = c.tac.xi[i]; if (!id) return 0;
+  c.tac.xi[i] = null;
+  return id;
+}
 
 /* ---------- 秘書 (2026-10-15): the club secretary speaks up; all her messages go through here ----------
    S.sec = { name, back: [return memories], notes: [posted notes], nid, f0 (funds at the last month start), stop }.
@@ -5330,7 +5337,7 @@ const API = {
   newGame, seasonForDate, seasonLabel, squad, strength, table, titleClinched, position, age, ovr, value, wage, money, attrs,
   SPON, sponOf, sponOn, sponDeals, sponEst, sponP, sponTarget, sponOffer, sponPending, sponRec, sponPick, sponAuto, sponLook, sponStat, sponNow, sponCheck, sponMonthly, sponMonth, sponSettle, sponJob, sponText, sponShort, payMonths, attendance,
   SEC, secOf, secName, setSecName, secPost, secNotes, secSeen, secDone, secFix, secSwap, secSwapAll, secTook, secReturns, secRestore, secKeep, secMonth, bigMatch, matchStory,
-  autoLineup, autoBench, benchSwap, benchRemove, lineupIssues, BENCH_SIZE, PRESET_MAX, savePreset, loadPreset, presetStatus, renamePreset, deletePreset, presetsOf, fillEmpty, clubRating, validateLineup, effective, posPenalty, available, nextComp, compOf, susIn, setSus, susList, bansOf, banHits, addBan, serveBan, banSweep, banPending, COMP_JP, CARD, RED, teamRating,
+  autoLineup, autoBench, benchSwap, benchRemove, xiRemove, lineupIssues, BENCH_SIZE, PRESET_MAX, savePreset, loadPreset, presetStatus, renamePreset, deletePreset, presetsOf, fillEmpty, clubRating, validateLineup, effective, posPenalty, available, nextComp, compOf, susIn, setSus, susList, bansOf, banHits, addBan, serveBan, banSweep, banPending, COMP_JP, CARD, RED, teamRating,
   CAMP, campPlan, campOf, campPending, campPick, campAbsent, campRec, campDay, campSeen, campJob,
   LINK, COMBO, linkAdj, linkOf, linkEval, linkLive, linkMatch, linkPartners, linkEstimate, linkSweep, linkDrop, comboText, bpFor, moveP,
   createMatch, stepMatch, simulateFull, finishMatch, doSub, benchOptions, onPitch, setMentality, bestSubFor, setCounter, mentLabel,

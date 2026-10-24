@@ -1607,7 +1607,9 @@ function sheetSlot(i) {
       const st = !av ? (p.inj > 0 ? `<span class="chip warn">負傷 ${p.inj}日</span>` : '<span class="chip warn">出場停止</span>') : j >= 0 ? `<span class="chip ok">${E.ROLE[E.FORMATIONS[c.tac.form][j][0]].jp}で先発</span>` : c.tac.bench.includes(p.id) ? '<span class="chip">ベンチ</span>' : '';
       const st2 = av ? susElse(p) : '';
       return `<li><button class="prow" data-act="assign" data-i="${i}" data-id="${p.id}" ${av ? '' : 'disabled'} style="${p.id === cur ? 'background:color-mix(in srgb,var(--accent-bg) 14%,transparent)' : ''}${av ? '' : ';opacity:.5'}"><span class="no">${p.num}</span>${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>能力 ${E.ovr(p)}・適性 ${Math.round(E.roleApt(p, role))}・${Math.round(p.cond)}% ${p.hot ? '<span class="chip fire">燃えている</span>' : ''}${st}${st2}</span></span><span class="rt"><span class="ovr ${oc(e)}">${Math.round(e)}</span></span></button></li>`;
-    }).join('')}</ul>`, '<button class="btn ghost block" data-act="closeSheet">閉じる</button>');
+    }).join('')}</ul>`,
+    cur ? `<div class="grid2"><button class="btn ghost" data-act="xiOut" data-i="${i}">先発から外す</button><button class="btn ghost" data-act="player" data-id="${cur}">詳細を見る</button></div><button class="btn ghost block" data-act="closeSheet">閉じる</button>`
+      : '<button class="btn ghost block" data-act="closeSheet">閉じる</button>');
 }
 
 /* ---------- league ---------- */
@@ -2912,6 +2914,7 @@ const ACT = {
   benchOut(d) { const p = S.players[d.id]; if (E.benchRemove(S, Number(d.id))) { persist(false); closeSheet(); render(); toast(`${p.short}をベンチから外しました`); } },
   benchAuto() { const c = S.clubs[S.my]; c.tac.benchManual = false; E.autoBench(S, S.my, true); persist(false); render(); toast('ベンチをおまかせで組み直しました'); },
   slot(d) { sheetSlot(Number(d.i)); },
+  xiOut(d) { const id = E.xiRemove(S, Number(d.i)); if (id) { persist(false); closeSheet(); render(); toast(`${S.players[id].short}を先発から外しました（ベンチ外）`); } },
   assign(d) {
     const c = S.clubs[S.my]; const i = Number(d.i), pid = Number(d.id); const xi = c.tac.xi; const j = xi.indexOf(pid);
     if (j === i) { closeSheet(); return; }
