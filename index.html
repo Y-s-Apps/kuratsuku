@@ -2528,6 +2528,13 @@ function benchRemove(S, pid) {
   c.tac.bench = c.tac.bench.filter(id => id !== pid); c.tac.benchManual = true;
   return true;
 }
+// manager takes a starter out without a replacement (2026-10-24): the place is left empty (lineupIssues blocks kickoff
+// until it is filled, the secretary suggests someone) and the player goes out of the matchday squad, like benchRemove
+function xiRemove(S, i) {
+  const c = S.clubs[S.my]; const id = c.tac.xi[i]; if (!id) return 0;
+  c.tac.xi[i] = null;
+  return id;
+}
 
 /* ---------- 秘書 (2026-10-15): the club secretary speaks up; all her messages go through here ----------
    S.sec = { name, back: [return memories], notes: [posted notes], nid, f0 (funds at the last month start), stop }.
@@ -6489,7 +6496,7 @@ const API = {
   newGame, seasonForDate, seasonLabel, squad, strength, table, titleClinched, position, age, ovr, value, wage, money, attrs,
   SPON, sponOf, sponOn, sponDeals, sponEst, sponP, sponTarget, sponOffer, sponPending, sponRec, sponPick, sponAuto, sponLook, sponStat, sponNow, sponCheck, sponMonthly, sponMonth, sponSettle, sponJob, sponText, sponShort, payMonths, attendance,
   SEC, secOf, secName, setSecName, secPost, secNotes, secSeen, secDone, secFix, secSwap, secSwapAll, secTook, secReturns, secRestore, secKeep, secMonth, bigMatch, matchStory,
-  autoLineup, autoBench, benchSwap, benchRemove, lineupIssues, BENCH_SIZE, PRESET_MAX, savePreset, loadPreset, presetStatus, renamePreset, deletePreset, presetsOf, fillEmpty, clubRating, validateLineup, effective, posPenalty, available, nextComp, compOf, susIn, setSus, susList, bansOf, banHits, addBan, serveBan, banSweep, banPending, COMP_JP, CARD, RED, teamRating,
+  autoLineup, autoBench, benchSwap, benchRemove, xiRemove, lineupIssues, BENCH_SIZE, PRESET_MAX, savePreset, loadPreset, presetStatus, renamePreset, deletePreset, presetsOf, fillEmpty, clubRating, validateLineup, effective, posPenalty, available, nextComp, compOf, susIn, setSus, susList, bansOf, banHits, addBan, serveBan, banSweep, banPending, COMP_JP, CARD, RED, teamRating,
   CAMP, campPlan, campOf, campPending, campPick, campAbsent, campRec, campDay, campSeen, campJob,
   LINK, COMBO, linkAdj, linkOf, linkEval, linkLive, linkMatch, linkPartners, linkEstimate, linkSweep, linkDrop, comboText, bpFor, moveP,
   createMatch, stepMatch, simulateFull, finishMatch, doSub, benchOptions, onPitch, setMentality, bestSubFor, setCounter, mentLabel,
@@ -8581,7 +8588,9 @@ function sheetSlot(i) {
       const st = !av ? (p.inj > 0 ? `<span class="chip warn">負傷 ${p.inj}日</span>` : '<span class="chip warn">出場停止</span>') : j >= 0 ? `<span class="chip ok">${E.ROLE[E.FORMATIONS[c.tac.form][j][0]].jp}で先発</span>` : c.tac.bench.includes(p.id) ? '<span class="chip">ベンチ</span>' : '';
       const st2 = av ? susElse(p) : '';
       return `<li><button class="prow" data-act="assign" data-i="${i}" data-id="${p.id}" ${av ? '' : 'disabled'} style="${p.id === cur ? 'background:color-mix(in srgb,var(--accent-bg) 14%,transparent)' : ''}${av ? '' : ';opacity:.5'}"><span class="no">${p.num}</span>${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>能力 ${E.ovr(p)}・適性 ${Math.round(E.roleApt(p, role))}・${Math.round(p.cond)}% ${p.hot ? '<span class="chip fire">燃えている</span>' : ''}${st}${st2}</span></span><span class="rt"><span class="ovr ${oc(e)}">${Math.round(e)}</span></span></button></li>`;
-    }).join('')}</ul>`, '<button class="btn ghost block" data-act="closeSheet">閉じる</button>');
+    }).join('')}</ul>`,
+    cur ? `<div class="grid2"><button class="btn ghost" data-act="xiOut" data-i="${i}">先発から外す</button><button class="btn ghost" data-act="player" data-id="${cur}">詳細を見る</button></div><button class="btn ghost block" data-act="closeSheet">閉じる</button>`
+      : '<button class="btn ghost block" data-act="closeSheet">閉じる</button>');
 }
 
 /* ---------- league ---------- */
@@ -9886,6 +9895,7 @@ const ACT = {
   benchOut(d) { const p = S.players[d.id]; if (E.benchRemove(S, Number(d.id))) { persist(false); closeSheet(); render(); toast(`${p.short}をベンチから外しました`); } },
   benchAuto() { const c = S.clubs[S.my]; c.tac.benchManual = false; E.autoBench(S, S.my, true); persist(false); render(); toast('ベンチをおまかせで組み直しました'); },
   slot(d) { sheetSlot(Number(d.i)); },
+  xiOut(d) { const id = E.xiRemove(S, Number(d.i)); if (id) { persist(false); closeSheet(); render(); toast(`${S.players[id].short}を先発から外しました（ベンチ外）`); } },
   assign(d) {
     const c = S.clubs[S.my]; const i = Number(d.i), pid = Number(d.id); const xi = c.tac.xi; const j = xi.indexOf(pid);
     if (j === i) { closeSheet(); return; }
