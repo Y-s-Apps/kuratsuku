@@ -184,6 +184,15 @@ async def main():
                     await bottom_of('#sheet', 'hometown sheet')
                     if w == 393: await page.screenshot(path=str(OUT/f"ip-town-{mode}-{w}x{h}.png"))
                     await page.locator('#sheet [data-act="closeSheet"]').last.dispatch_event('click'); await page.wait_for_timeout(300)
+                    # 駅の向こう (2026-10-25): the second board, from the switch above the board
+                    await page.locator('.ht-sw [data-k="east"]').dispatch_event('click'); await page.wait_for_timeout(150)
+                    await again('hometown east')
+                    out = await page.evaluate('''() => { const B = document.querySelector('.ht-board.ht-east'); if (!B) return ['no board']; const r = B.getBoundingClientRect();
+                      return [...B.querySelectorAll('.ht-tok, .ht-shut, .ht-go')].filter(e => { const q = e.getBoundingClientRect(); return q.left < r.left - 0.5 || q.right > r.right + 0.5; }).map(e => e.textContent.trim())
+                        .concat(document.scrollingElement.scrollWidth > innerWidth + 1 ? ['horizontal scroll'] : []); }''')
+                    if out: print(f"   {name} hometown east: {out}"); bad.append(f'{tag} hometown east')
+                    if w == 393: await page.screenshot(path=str(OUT/f"ip-east-{mode}-{w}x{h}.png"))
+                    await page.locator('.ht-sw [data-k=""]').dispatch_event('click'); await page.wait_for_timeout(100)
                     await page.locator('[data-act="clView"][data-k="main"]').dispatch_event('click'); await page.wait_for_timeout(100)
                     # an open sheet (the page is pinned while it is open)
                     await page.locator('[data-tab="squad"]').dispatch_event('click'); await page.wait_for_timeout(150)

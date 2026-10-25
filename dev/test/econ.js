@@ -9,15 +9,15 @@ const E = require(process.env.ENG || '../src/engine.js'); const DATA = require('
 const club = process.argv[2] || 'yokohamafm', N = +(process.argv[3] || 10), mode = process.argv[4] || 'none', RUNS = +(process.argv[5] || 1);
 const med = a => { const b = a.slice().sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : 0; };
 const FAC = ['train', 'youth', 'medical', 'scout'];
-const BUILD = ['shop', 'food', 'sclub', 'house', 'dorm', 'indoor', 'roof'];
-const AB = { exp: '増', roof: '屋', food: '食', shop: '店', sclub: 'サ', house: 'ハ', dorm: '寮', indoor: '室' };
+const BUILD = ['shop', 'food', 'sclub', 'house', 'dorm', 'indoor', 'roof', 'school', 'museum', 'station', 'hotel'];   // 駅の向こう (2026-10-25) once the 7 are up
+const AB = { exp: '増', roof: '屋', food: '食', shop: '店', sclub: 'サ', house: 'ハ', dorm: '寮', indoor: '室', museum: 'ミ', station: '駅', school: 'ス', hotel: 'ホ' };
 const oku = v => (v / 10000).toFixed(1);
 const per = [];   // per season: [my funds, league median, league max, my fans, upkeep]
 for (let run = 0; run < RUNS; run++) {
   const S = E.newGame(DATA, club, 't', '2026-10-15'); S.settings.boardLv = 'easy';
   // a full house (the season's home crowd at 90% of the seats or more): save for the next stand first
   const saving = () => { if (!E.townInfo) return 0; const inf = E.townInfo(S), ex = E.townCan(S, 'exp'); return inf.full != null && inf.full >= 0.9 && ex.cost ? ex.cost : 0; };
-  const ups = () => { if (mode !== 'auto') return; const sv = saving(); for (let k = 0; k < 3; k++) for (const key of FAC) { const c = S.clubs[S.my]; if (c.fac[key] < 5 && c.funds > E.facCost(c.fac[key]) * 1.6 + sv) E.upgrade(S, key); } };
+  const ups = () => { if (mode !== 'auto') return; const sv = saving(); for (let k = 0; k < 3; k++) for (const key of FAC) { const c = S.clubs[S.my]; if (c.fac[key] < (E.FAC_MAX || 5) && c.funds > E.facCost(c.fac[key]) * 1.6 + sv) E.upgrade(S, key); } };
   const builds = () => {
     if (mode !== 'auto' || !E.townBuild) return;
     const c = S.clubs[S.my]; if (c.town && c.town.job) return;
@@ -43,7 +43,7 @@ for (let run = 0; run < RUNS; run++) {
       const inf = E.townInfo ? E.townInfo(S) : null;
       const town = inf ? ` | サポーター ${inf.fans.toLocaleString()}・観客 ${inf.att == null ? '-' : inf.att.toLocaleString()}/${inf.cap.toLocaleString()} | 建物 ${inf.b.filter(b => b.built).map(b => AB[b.k] + (b.k === 'exp' ? b.built : '')).join('') || 'なし'}${inf.job ? `（工事中 ${AB[inf.job.k]}）` : ''}・維持費 年${oku(my.fin.up || 0)}億` : '';
       const fin = `入場 ${oku(my.fin.gate)} スポ ${oku(my.fin.spon)} 配分 ${oku(my.fin.dist || 0)} 賞金 ${oku(my.fin.prize)} 移籍 ${oku(my.fin.trans)} 人件 ${oku(my.fin.wages)} 投資 ${oku(my.fin.fac)}`;
-      console.log(`S${s + 1} ${S.seasonEnd.label} ${my.short} ${S.seasonEnd.myPos}位 | 自クラブ ${E.money(my.funds)} | リーグ 中央値 ${E.money(med(f))} 最大 ${E.money(Math.max(...f))} 最小 ${E.money(Math.min(...f))} | ${fin}${spTxt} | 施設 ${FAC.map(k => my.fac[k]).join('')}${town} | ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+      console.log(`S${s + 1} ${S.seasonEnd.label} ${my.short} ${S.seasonEnd.myPos}位 | 自クラブ ${E.money(my.funds)} | リーグ 中央値 ${E.money(med(f))} 最大 ${E.money(Math.max(...f))} 最小 ${E.money(Math.min(...f))} | ${fin}${spTxt} | 施設 ${FAC.map(k => my.fac[k]).join('/')}${town} | ${((Date.now() - t0) / 1000).toFixed(0)}s`);
       (per[s] || (per[s] = [])).push([my.funds, med(f), Math.max(...f), inf ? inf.fans : 0, my.fin.up || 0]);
       E.rollover(S); if (S.fired) { console.log('FIRED', S.fired.reason); E.takeJob(S, S.fired.offers[0]); }
       ups(); builds(); s++;

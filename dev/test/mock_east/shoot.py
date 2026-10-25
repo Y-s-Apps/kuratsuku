@@ -1,4 +1,5 @@
-# 2026-10-25 の画面イメージ: 施設 Lv6〜10 と「駅の向こう」の 案1（地図を下に伸ばす）・案2（2枚目の地図）を実際の画面で撮る
+# 2026-10-25 の画面イメージ: 施設 Lv6〜10 と「駅の向こう」を実際の画面で撮る。ユーザーに見せたのは 案1（地図を下に伸ばす）と
+# 案2（2枚目の地図）で、案2 が選ばれ 案1 のコードは外した（いまは案2だけ撮る。案1 の画像は 0faa93c の版で撮れる）
 # usage: python3 shoot.py [chalk|white] [幅] [高さ]  → out/*.png（make_save.js のあと。KTK_FONTS=<@fontsource> で本物の書体）
 import asyncio, pathlib, os, re, json, sys
 from playwright.async_api import async_playwright
@@ -39,7 +40,6 @@ async def main():
             await page.evaluate("s => localStorage.setItem('touchline.j1.save', 'lz:' + LZString.compressToBase64(s))", json.dumps(st))
             await page.reload(); await page.wait_for_timeout(400); await page.click('[data-act="continue"]'); await page.wait_for_timeout(500)
             if css: await page.evaluate('document.fonts.ready')
-            await page.evaluate(f'window.KTK_HT = {mode}')
             await page.locator('[data-act="tab"][data-tab="club"]').first.click(); await page.wait_for_timeout(250)
             await page.locator('[data-act="clView"][data-k="town"]').first.click(); await page.wait_for_timeout(350)
         async def shot(name, full=False):
@@ -62,14 +62,10 @@ async def main():
               for (let i = 0; i < toks.length; i++) for (let j = i + 1; j < toks.length; j++) { const a = toks[i], b = toks[j]; if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) out.push('overlap ' + i + ' ' + j); }
               return out; }''')
 
-        # 案1: the board goes on below the town
-        await load(SAVES['open'], 1)
-        await scroll_to('.ht-board', 'start', 72); await shot('m1-top')
-        await scroll_to('.ht-board', 'end', 250); await shot('m1-east')
-        await el('.ht-board', 'm1-board'); print('案1', await bad())
-        await sheet('train', 'sh-train'); await sheet('youth', 'sh-youth'); await sheet('hotel', 'sh-hotel'); await sheet('station', 'sh-station')
-        await load(SAVES['shut'], 1)
-        await scroll_to('.ht-board', 'end', 250); await shot('m1-shut'); await el('.ht-board', 'm1-board-shut'); print('案1 shut', await bad())
+        await load(SAVES['open'], 2)
+        await sheet('train', 'sh-train'); await sheet('youth', 'sh-youth')
+        await page.locator('.ht-sw [data-k="east"]').click(); await page.wait_for_timeout(350)
+        await sheet('hotel', 'sh-hotel'); await sheet('station', 'sh-station')
         # 案2: a second board
         await load(SAVES['open'], 2)
         await scroll_to('.ht-sw', 'start', 72); await shot('m2-top')

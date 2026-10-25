@@ -1200,10 +1200,9 @@ const sgn = n => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toLocaleStr
 const HT_FAC = ['train', 'youth', 'medical', 'scout'];
 const HT_SHORT = { exp: '増築', roof: '屋根・ビジョン', food: 'グルメ', shop: 'ショップ', sclub: 'サポーターズ', house: 'クラブハウス', dorm: '選手寮', indoor: '室内練習場', museum: 'ミュージアム', station: '新駅', school: 'スクール', hotel: 'ホテル' };
 const HT_POS = { stad: [158, 202], exp: [262, 146], train: [52, 60], youth: [134, 60], medical: [216, 60], scout: [298, 60], shop: [40, 170], food: [40, 258], roof: [306, 196], house: [52, 330], dorm: [134, 330], indoor: [216, 330], sclub: [298, 330] };
-// 駅の向こう (2026-10-25): 案1 = the board goes on below (a frame like the facilities'), 案2 = a second board of its own
-const HT_POS1 = { station: [52, 530], museum: [134, 530], school: [216, 530], hotel: [298, 530] };
+// 駅の向こう (2026-10-25, the user's 案2): a second board of its own — the line from the stadium at the top with the new
+// station on it, the street down to the school's pitch, the shops and the park (案1, the board going on below, wasn't chosen)
 const HT_POS2 = { station: [180, 84], museum: [70, 222], hotel: [292, 222], school: [262, 352] };
-const htMode = () => window.KTK_HT || 2;   // the mock: which layout (removed once one is chosen)
 const HT_DESC = {
   exp: 'スタンドを5,000席増やします。満員で入れなかったサポーターが入れるようになり、入場料が増えます。工事中のホーム戦は、席が減るので観客が1割少なくなります。',
   roof: 'スタンドを覆う屋根と大型ビジョン。雨の日も観やすく、試合の熱気が伝わるスタジアムに。観客が増え、1人あたりの売上も上がります。',
@@ -1275,7 +1274,7 @@ function viewTown() {
   const oku = v => E.money(v).replace('円', '');
   const facs = HT_FAC.map(k => tok(k, `fac${c.fac[k] > 5 ? ' hi' : ''}`, E.FACILITY[k].jp, c.fac[k], `${E.FACILITY[k].jp} Lv${c.fac[k]}`)).join('');
   // 駅の向こう: shut (a lock and how many are left), or the four buildings
-  const east = pos => E.TOWN_EAST.map(k => {
+  const east = (pos = HT_POS2) => E.TOWN_EAST.map(k => {
     const B = E.TOWN.b[k];
     if (job && job.k === k) return tok(k, 'job', `工事中 ${pct}%`, null, `${B.jp}（工事中 ${pct}%）`, pos);
     if (E.built(c, k)) return tok(k, 'built', HT_SHORT[k], null, `${B.jp}（完成）`, pos);
@@ -1296,23 +1295,21 @@ function viewTown() {
   const stad = `<button class="ht-stad${job && job.k === 'exp' ? ' works' : ''}" style="left:${x(HT_POS.stad[0])};top:${HT_POS.stad[1]}px;--n:${n}" data-act="htOpen" data-k="exp" aria-label="${esc(c.stadium || 'スタジアム')}（収容 ${I.cap.toLocaleString('ja-JP')}席）">
     <span class="c">${Array.from({ length: n }, (_, i) => `<span class="st" style="--i:${n - i}"></span>`).join('')}<span class="ring"></span><span class="bowl"></span><span class="cap">${I.cap.toLocaleString('ja-JP')}席</span></span></button>`;
   const rails = Array.from({ length: 26 }, (_, i) => { const xx = i * 15; const y = 286 - xx * 0.021; return `<path class="rail" d="M${xx} ${y - 5} L ${xx + 1} ${y + 5}"/>`; }).join('');
-  const tall = htMode() === 1, H = tall ? 622 : 432;
-  const ext1 = tall ? `<rect class="zone" x="8" y="446" width="345" height="166" rx="10"/><path class="ch thin" d="M95 400 L 93 446"/><path class="ch thin" d="M258 400 L 256 446"/><path class="ch" d="M-5 424 C 60 418, 120 430, 180 424 S 300 418, 370 426"/>` : '';
-  const board = `<div class="ht-board${tall ? ' tall' : ''}" style="height:${H}px">
-    <svg class="map" viewBox="0 0 361 ${H}" preserveAspectRatio="none" aria-hidden="true">
+  const board = `<div class="ht-board">
+    <svg class="map" viewBox="0 0 361 432" preserveAspectRatio="none" aria-hidden="true">
       <defs><filter id="ht-chalk"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter></defs>
       <g filter="url(#ht-chalk)">
         <rect class="zone" x="8" y="12" width="345" height="94" rx="10"/>
         <path class="ch" d="M-5 122 C 40 106, 80 134, 130 118 S 210 102, 250 116 S 320 130, 370 110"/>
         <path class="ch" d="M-5 133 C 40 117, 80 145, 130 129 S 210 113, 250 127 S 320 141, 370 121"/>
         <path class="rail" d="M-5 283 L 370 275"/><path class="rail" d="M-5 289 L 370 281"/>${rails}
-        <path class="ch thin" d="M95 400 L 102 300 L 92 140"/><path class="ch thin" d="M361 240 L 270 240 L 250 300"/><path class="ch thin" d="M258 400 L 262 300"/>${ext1}
+        <path class="ch thin" d="M95 400 L 102 300 L 92 140"/><path class="ch thin" d="M361 240 L 270 240 L 250 300"/><path class="ch thin" d="M258 400 L 262 300"/>
       </g>
     </svg>
-    <span class="ht-lab" style="left:${x(18)};top:18px">クラブの施設</span><span class="ht-lab" style="right:${x(22)};top:140px">川</span>${tall ? `<span class="ht-lab" style="right:${x(14)};top:292px">駅</span><span class="ht-lab" style="left:${x(18)};top:452px">駅の向こう</span>` : `<button class="ht-lab ht-go" style="right:${x(10)};top:286px" data-act="htEast" data-k="east">駅の向こう →</button>`}
-    ${stad}${expTok}${facs}${blds}${tall ? east(HT_POS1) + (shut ? `<div class="ht-shutw" style="top:566px">${shut}</div>` : '') : ''}
+    <span class="ht-lab" style="left:${x(18)};top:18px">クラブの施設</span><span class="ht-lab" style="right:${x(22)};top:140px">川</span><button class="ht-lab ht-go" style="right:${x(10)};top:286px" data-act="htEast" data-k="east">駅の向こう →</button>
+    ${stad}${expTok}${facs}${blds}
   </div>`;
-  // 案2: the second board (the line from the stadium at the top, the new station on it, the street down to the school)
+  // the second board: 駅の向こう
   const ties = Array.from({ length: 26 }, (_, i) => { const xx = i * 15; const y = 84 - xx * 0.021; return `<path class="rail" d="M${xx} ${y - 5} L ${xx + 1} ${y + 5}"/>`; }).join('');
   const board2 = `<div class="ht-board ht-east${I.east.open ? '' : ' shut'}">
     <svg class="map" viewBox="0 0 361 432" preserveAspectRatio="none" aria-hidden="true">
@@ -1330,8 +1327,8 @@ function viewTown() {
     <span class="ht-lab" style="left:${x(198)};top:150px;writing-mode:vertical-rl">駅前通り</span><span class="ht-lab" style="left:${x(26)};top:396px">公園</span><span class="ht-lab" style="left:${x(110)};top:276px">商店街</span>
     ${east(HT_POS2)}${shut ? `<div class="ht-shutw" style="top:150px">${shut}</div>` : ''}
   </div>`;
-  const two = htMode() === 2, onE = two && UI.htE;
-  const sw = two ? `<div class="seg ht-sw"><button data-act="htEast" data-k="" aria-pressed="${!onE}">スタジアムのまわり</button><button data-act="htEast" data-k="east" aria-pressed="${!!onE}">駅の向こう${I.east.open ? ` ${I.east.n}/${E.TOWN_EAST.length}` : ''}</button></div>` : '';
+  const onE = !!UI.htE;
+  const sw = `<div class="seg ht-sw"><button data-act="htEast" data-k="" aria-pressed="${!onE}">スタジアムのまわり</button><button data-act="htEast" data-k="east" aria-pressed="${!!onE}">駅の向こう${I.east.open ? ` ${I.east.n}/${E.TOWN_EAST.length}` : ''}</button></div>`;
   const jobCard = job ? `<section class="card ht-job">
       <div class="row"><div class="eyebrow">工事中</div><span class="spacer"></span><span class="chip acc">あと${job.left}日</span></div>
       <div class="ht-job-t"><b>${htJobName(job)}</b>${job.k === 'exp' ? `<span class="small muted">+${E.TOWN.b.exp.seats.toLocaleString('ja-JP')}席 → ${(I.cap + E.TOWN.b.exp.seats).toLocaleString('ja-JP')}席</span>` : ''}</div>

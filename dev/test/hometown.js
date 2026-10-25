@@ -26,8 +26,10 @@ ok(S.v >= 15, `new game: S.v ${S.v}`);
 ok(Object.values(S.clubs).filter(x => !x.ab && !x.afc).every(x => x.fans === FB[x.fan] && x.fan0 === FB[x.fan] && x.fanP === x.pres) && Object.values(S.clubs).filter(x => x.afc).every(x => x.fans == null), 'every club starts with the supporters of its fan level (8,000〜34,000); the ACL clubs abroad have none');
 ok(!('stadium' in E.FACILITY) && Object.values(S.clubs).every(x => !('stadium' in x.fac)) && !E.upgrade(S, 'stadium').ok, 'スタジアム設備 is gone from the facilities (4 left)');
 ok(E.gatePer(c) === T.per && E.townUpkeep(c) === 0 && E.fansTarget(c) === c.fans, `no buildings: ${T.per * 10000}円 a spectator, no upkeep, the supporters at their level`);
-ok(TOWN_OK(), 'the table: 8 kinds, expansion 15〜40億 in 6〜12 months, the one-offs cheaper');
-function TOWN_OK() { return Object.keys(B).length === 8 && B.exp.cost[0] === 150000 && B.exp.cost[B.exp.cost.length - 1] === 400000 && B.exp.mo[0] === 6 && B.exp.mo[B.exp.mo.length - 1] === 12 && Object.entries(B).every(([k, b]) => k === 'exp' || (b.cost < 150000 && b.mo >= 2 && b.up > 0)); }
+ok(TOWN_OK(), 'the table: 8 kinds around the stadium (expansion 15〜40億 in 6〜12 months, the one-offs cheaper) + 4 beyond the station (20〜60億)');
+function TOWN_OK() { return Object.keys(B).length === 12 && B.exp.cost[0] === 150000 && B.exp.cost[B.exp.cost.length - 1] === 400000 && B.exp.mo[0] === 6 && B.exp.mo[B.exp.mo.length - 1] === 12
+  && Object.entries(B).every(([k, b]) => k === 'exp' || (b.east ? b.cost >= 200000 && b.cost <= 600000 : b.cost < 150000) && b.mo >= 2 && b.up > 0)
+  && E.TOWN_EAST.join() === 'museum,station,school,hotel' && T.west.length === 7 && T.west.every(k => B[k] && !B[k].east); }
 
 /* the crowd: the supporters, the stadium, the buildings, the works */
 {
@@ -115,6 +117,38 @@ function TOWN_OK() { return Object.keys(B).length === 8 && B.exp.cost[0] === 150
   ok((b - a) / 4000 > 0.7 && (b - a) / 4000 < 1.3, `選手寮: academy graduates +${((b - a) / 4000).toFixed(2)} potential`);
 }
 
+/* 施設 Lv6〜10 and 駅の向こう (2026-10-25) */
+{
+  const X = clone(S), xc = X.clubs[X.my], FAC = ['train', 'youth', 'medical', 'scout'];
+  ok(E.FAC_MAX === 10 && [5, 6, 7, 8, 9].map(E.facCost).join() === '60000,100000,150000,220000,300000' && [1, 2, 3, 4].map(E.facCost).every((v, i, a) => v < E.facCost(5) && (!i || v > a[i - 1])), 'a level above 5 costs 6・10・15・22・30億 (more than any below)');
+  xc.funds = 5000000; for (const k of FAC) xc.fac[k] = 5; const f0 = xc.funds;
+  for (const k of FAC) while (E.upgrade(X, k).ok);
+  ok(FAC.every(k => xc.fac[k] === 10) && f0 - xc.funds === 4 * 830000 && !E.upgrade(X, 'train').ok, `Lv5 → Lv10: 83億 each (${oku(f0 - xc.funds)} for the four), no Lv11`);
+  ok(E.townUpkeep(xc) === 3 * 8 * T.facUp.train + 9 * T.facUp.scout, `the upkeep of four Lv10 facilities: ${oku(E.townUpkeep(xc))} a month`);
+  const fx = (k, lv) => E.facFx(k, lv);
+  ok(E.facEff(5) === 5 && Math.abs(E.facEff(10) - 6) < 1e-9 && Math.abs(fx('train', 5).grow - 1.36) < 1e-9 && Math.abs(fx('train', 10).grow - 1.48) < 1e-9, `練習場: growth ×${fx('train', 5).grow.toFixed(2)} at Lv5, ×${fx('train', 10).grow.toFixed(2)} at Lv10 (a level above 5 = 0.2 of one below)`);
+  ok(fx('youth', 5).n === 4 && fx('youth', 10).n === 4 && fx('youth', 10).gem > fx('youth', 5).gem && Math.abs(fx('youth', 10).gem - 0.36) < 1e-9, `ユース: 4 a year at Lv5 and Lv10, 逸材 ${Math.round(fx('youth', 5).gem * 100)}% → ${Math.round(fx('youth', 10).gem * 100)}%`);
+  ok(Math.abs(fx('medical', 10).inj - 0.79) < 1e-9 && Math.round(fx('scout', 10).pot) === 10, `メディカル: injuries ×${fx('medical', 10).inj.toFixed(2)} at Lv10 (×0.85 at Lv5); スカウト網: potential +${fx('scout', 10).pot}`);
+  // 駅の向こう: shut until the 7 around the stadium are up; the last one's note says it is open
+  ok(!E.townEast(xc) && E.townCan(X, 'museum').locked && !E.townBuild(X, 'museum').ok && E.townInfo(X).east.open === false, 'beyond the station: shut while the buildings around the stadium are missing');
+  const tw = E.townOf(xc); for (const k of T.west.slice(0, -1)) tw.b[k] = X.date;
+  const last = T.west[T.west.length - 1];
+  ok(E.townBuild(X, last).ok, `the 7th (${B[last].jp}) is being built`); tw.job.to = X.date; E.townDay(X);
+  const note = X.sec.notes.find(n => n.k === 'built' && n.data.k === last);
+  ok(E.townEast(xc) && note && note.data.east === 1 && E.townInfo(X).east.open && E.townCan(X, 'museum').ok, 'the 7th done: beyond the station is open, and her note says so');
+  // the effects
+  xc.fans = 1000000;
+  ok(E.attendance(X, X.my, 'mito') === Math.round(xc.cap * 0.97), 'a full house is 97% of the seats');
+  tw.b.station = X.date;
+  ok(E.attendance(X, X.my, 'mito') === Math.round(xc.cap * 0.99) && E.townFill(xc) === 0.99, `スタジアム前駅: a full house is 99% (${Math.round(xc.cap * 0.99).toLocaleString()})`);
+  tw.b.museum = X.date; tw.b.hotel = X.date;
+  ok(Math.abs(E.gatePer(xc) - (T.per + T.west.reduce((a, k) => a + (B[k].per || 0), 0) + B.museum.per + B.hotel.per)) < 1e-9, `ミュージアム + ホテル: a spectator brings ${Math.round(E.gatePer(xc) * 10000)}円`);
+  const loc = (on, n = 300) => { if (on) tw.b.school = X.date; else delete tw.b.school; let h = 0; for (let i = 0; i < n; i++) { const p = E.genPlayer(X, X.my, { age: 18, foreign: false, local: true }); if (p.bp === xc.area) h++; } return h / n; };
+  const l0 = loc(false), l1 = loc(true);
+  ok(l0 > 0.45 && l0 < 0.65 && l1 > 0.72 && l1 < 0.88, `サッカースクール: academy players born in ${xc.area} ${Math.round(l0 * 100)}% → ${Math.round(l1 * 100)}%`);
+  ok(E.townInfo(X).east.n === 4 && E.townUpkeep(xc) > 0, 'all four beyond the station counted');
+}
+
 /* the supporters */
 {
   const X = clone(S), xc = X.clubs[X.my], F = T.fan, t0 = E.fansTarget(xc);
@@ -172,12 +206,14 @@ function TOWN_OK() { return Object.keys(B).length === 8 && B.exp.cost[0] === 150
 {
   const X = E.newGame(DATA, 'kashiwa', 't', '2026-10-15'); X.settings.boardLv = 'easy';
   const f0 = Object.fromEntries(X.order.map(id => [id, X.clubs[id].fans]));
-  let ends = 0, err = null;
-  try { for (let g = 0; g < 3000 && ends < 2; g++) { const st = playDay(X); if (st.stop === 'seasonEnd') { ends++; E.rollover(X); if (X.fired) E.takeJob(X, X.fired.offers[0]); } } } catch (e) { err = e; }
+  let ends = 0, err = null; const intake = [];
+  X.clubs[X.my].fac.youth = 10;   // Lv10: no more academy players than at Lv5
+  try { for (let g = 0; g < 3000 && ends < 2; g++) { const st = playDay(X); if (st.stop === 'seasonEnd') { ends++; const me = X.my, had = new Set(Object.keys(X.players)); E.rollover(X); if (me === X.my) intake.push(Object.values(X.players).filter(p => !had.has(String(p.id)) && p.yo === me && !p.gem && !p.reborn && p.club === me).length); if (X.fired) E.takeJob(X, X.fired.offers[0]); } } } catch (e) { err = e; }
   const ai = X.order.filter(id => id !== X.my && f0[id]).map(id => X.clubs[id]);
   const fs2 = ai.map(x => x.funds).sort((a, b) => a - b), med = fs2[fs2.length >> 1];
   const ratio = ai.map(x => x.fans / f0[x.id]).sort((a, b) => a - b);
   ok(!err && ends === 2, `two seasons played${err ? ' ' + err.stack : ''}`);
+  ok(intake.length && intake.every(n => n === 4), `ユース Lv10: academy graduates a season ${intake.join('・')} (4 as at Lv5)`);
   ok(med > 100000 && med < 350000, `the league's median funds after two seasons: ${oku(med)}`);
   ok(ratio[0] > 0.6 && ratio[ratio.length - 1] < 1.6 && ratio[ratio.length >> 1] > 0.85 && ratio[ratio.length >> 1] < 1.2, `AI supporters after two seasons: ×${ratio[0].toFixed(2)}〜×${ratio[ratio.length - 1].toFixed(2)} (median ×${ratio[ratio.length >> 1].toFixed(2)})`);
   ok(Object.values(X.clubs).every(x => x.fans == null || (Number.isFinite(x.fans) && x.fans >= T.fan.min)), 'no broken numbers');

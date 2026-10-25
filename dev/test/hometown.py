@@ -46,8 +46,19 @@ const old = require(tmp);
 const A = old.newGame(D, 'machida', '旧', '2026-10-14');
 for (let g = 0; g < 60; g++) { const st = old.advance(A, 1); if (st.stop === 'match') { const f = A.fixtures.find(y => y.id === st.fid); old.autoLineup(A, A.my); const X = old.createMatch(A, f); old.simulateFull(A, X); old.finishMatch(A, X); } else if (st.stop === 'inbox') A.inbox.forEach(y => { y.seen = true; if (y.type === 'offer') old.rejectOffer(A, y.id); }); }
 A.clubs[A.my].fac.stadium = 4; A.clubs[A.my].fac.train = 4;
-for (const p of Object.values(A.players)) if (p.club === A.my) { p.inj = 0; p.sus = 0; delete p.away; }
+for (const p of Object.values(A.players)) if (p.club === A.my) { p.inj = 0; p.sus = 0; delete p.bans; delete p.away; }   // (bans too: a suspended player made her bubble the lineup's, now and then)
 out.old = clone(A); info.oldDate = A.date;
+// east (2026-10-25): 横浜FM (71,624 + 5,000 seats would pass 75,000: no stand at all), 6 of the 7 around the stadium built,
+// the 室内練習場 done the next day, the facilities at Lv5, money to spend
+const Y = E.newGame(D, 'yokohamafm', 'ソーイ', '2026-10-15'), yc = Y.clubs[Y.my];
+E.sponPick(Y, E.sponRec(Y)); yc.fans = 80000;
+play(Y, '2026-09-20');
+yc.fans = 71000; yc.funds = 4000000; yc.fac = { train: 5, youth: 5, medical: 5, scout: 5 };
+const yt = E.townOf(yc); for (const k of E.TOWN.west) if (k !== 'indoor') yt.b[k] = Y.date;
+yt.job = { k: 'indoor', from: '2026-03-20', to: Y.date, cost: 80000 };
+E.secSeen(Y); Y.sec.notes = []; Y.inbox.forEach(y => { y.seen = true; });
+for (const p of E.squad(Y, Y.my)) { p.inj = 0; delete p.bans; delete p.away; } E.autoLineup(Y, Y.my); Y.sec.back = [];
+out.east = clone(Y); info.east = { cap: yc.cap, funds: yc.funds };
 fs.unlinkSync(tmp);
 console.log(JSON.stringify({ saves: out, info }));
 """
@@ -250,6 +261,62 @@ async def main(vw, vh, board, full):
         await click('#sec-float .sec-mag', 450)
         t = await sheet.inner_text(); ok('工事' in t and 'スタジアム増築 1期' in t and 'サポーター' in t, "the month's summary: 工事 スタジアム増築 1期 N%")
         await click('#sheet [data-act="closeSheet"]', 300)
+
+        # ---- 施設 Lv6〜10 and 駅の向こう (2026-10-25, the user's 案2: a second board)
+        await load(SAVES['east']); await town()
+        t = await page.locator('#view').inner_text()
+        ok('ほぼ満員。スタジアムはこれ以上増築できません。' in t and '増築の出番' not in t and not await has('.ht-tok[data-k="exp"]'), '横浜FM (no stand can be added): ほぼ満員。スタジアムはこれ以上増築できません。 (not 増築の出番です), no stand magnet')
+        sw = [x.strip() for x in await page.locator('.ht-sw button').all_inner_texts()]
+        ok(sw == ['スタジアムのまわり', '駅の向こう'] and await page.locator('.ht-sw [aria-pressed="true"]').inner_text() == 'スタジアムのまわり' and await has('.ht-board [data-act="htEast"][data-k="east"]'), f'the switch above the board: {"｜".join(sw)} (and 駅の向こう → on the map)')
+        await click('.ht-board [data-act="htEast"][data-k="east"]', 350)
+        ok(await has('.ht-board.ht-east.shut') and await page.locator('.ht-east .ht-tok.empty.shut').count() == 4 and 'あと1つ' in await page.locator('.ht-shut').inner_text(), 'beyond the station, shut: 4 faint magnets, スタジアムのまわりの建物を7つ建てると開きます（あと1つ）')
+        bo = await board_ok(); ok(not bo, f'every magnet and label inside the second board {bo}')
+        await page.evaluate("document.querySelector('.ht-sw').scrollIntoView(); scrollBy(0, -72)"); await shot('east-shut')
+        await click('.ht-east [data-act="htOpen"][data-k="school"]', 450)
+        ok('サッカースクール' in await sheet.inner_text() and await page.locator('#sheet .sheet-foot button[disabled]').count() == 1 and '建物を7つ建てると開きます（あと1つ）' in await page.locator('#sheet .sheet-foot').inner_text(), 'サッカースクール: its sheet, the button shut (建物を7つ建てると開きます（あと1つ）)')
+        await click('#sheet [data-act="closeSheet"]', 300)
+        await click('.ht-east [data-act="htEast"][data-k=""]', 350)
+        ok(await has('.ht-board:not(.ht-east)') and await page.locator('.ht-tok.job[data-k="indoor"]').count() == 1, '← スタジアム: back to the first board (室内練習場 being built)')
+        # the next day the 7th is done: her note opens the new district
+        done = False
+        for _ in range(8):
+            if not await has('#sheet.on'): await click('[data-act="go"]', 400)
+            if await has('#sheet .ht-done'): done = True; break
+            if await has('#sheet [data-act="quick"]'):
+                await click('#sheet [data-act="quick"]', 600)
+                if await has('[data-act="mClose"]'): await click('[data-act="mClose"]', 300)
+            elif await has('#sheet .card.alert'): await fix_xi()
+            elif await has('#sheet [data-act="closeSheet"]'): await click('#sheet [data-act="closeSheet"]', 300)
+        t = await sheet.inner_text() if done else ''
+        ok(done and '室内練習場が完成' in t and '駅の向こう' in t and '駅の向こうを見る' in await page.locator('#sheet [data-act="htGo"]').inner_text(), 'her note: 室内練習場が完成, 駅の向こうに新しい区画が開きました, ［駅の向こうを見る］')
+        if done:
+            await page.evaluate("document.querySelector('#sheet .ht-done').scrollIntoView({block:'center'})"); await shot('east-note')
+            await click('#sheet [data-act="htGo"]', 450)
+        ok(await has('.ht-board.ht-east:not(.shut)') and await page.locator('.ht-east .ht-tok.empty:not(.shut)').count() == 4 and not await has('.ht-shut') and '駅の向こう 0/4' in await page.locator('.ht-sw').inner_text(), '駅の向こうを見る: the second board, open — 4 to build, the switch says 0/4')
+        await click('.ht-east [data-act="htOpen"][data-k="museum"]', 450)
+        t = await sheet.inner_text()
+        ok('駅の向こう' in t and 'クラブミュージアム' in t and '30億' in t and '6か月' in t and '月300万' in t and '転生の確率 +10%' in t and '1人あたり +100円' in t, 'クラブミュージアム: 30億・6か月・月300万, 転生の確率 +10%・1人あたり +100円')
+        await click('#sheet [data-act="htBuild"]', 500)
+        st = await state(); c = st['clubs'][st['my']]
+        ok(c['town']['job']['k'] == 'museum' and await page.locator('.ht-east .ht-tok.job[data-k="museum"]').count() == 1 and 'クラブミュージアム' in await page.locator('.ht-job').inner_text(), 'built: the crane beyond the station and the works card')
+        bo = await board_ok(); ok(not bo, f'every magnet and label inside the second board {bo}')
+        await page.evaluate("document.querySelector('.ht-sw').scrollIntoView(); scrollBy(0, -72)"); await shot('east')
+        await click('.ht-east [data-act="htOpen"][data-k="station"]', 450)
+        ok('満員の上限 97%→99%' in await sheet.inner_text() and 'の完成後に建てられます' in await page.locator('#sheet .sheet-foot').inner_text(), 'スタジアム前駅: 満員の上限 97%→99%, waits for the museum')
+        await click('#sheet [data-act="closeSheet"]', 300)
+        # a facility past Lv5
+        await click('.ht-east [data-act="htEast"][data-k=""]', 350)
+        await click('[data-act="htOpen"][data-k="train"]', 450)
+        t = await sheet.inner_text()
+        ok('Lv6に強化する（6億円）' in await page.locator('#sheet .sheet-foot').inner_text() and '成長のスピード' in t and '×1.36' in t and '×1.38' in t and await page.locator('#sheet .ht-pips i').count() == 10, '練習場 Lv5: Lv6に強化する（6億円）, 成長のスピード ×1.36 → ×1.38, 10 pips')
+        await click('#sheet [data-act="htUp"]', 450)
+        st = await state()
+        ok(st['clubs'][st['my']]['fac']['train'] == 6 and 'Lv7に強化する（10億円）' in await page.locator('#sheet .sheet-foot').inner_text() and await page.locator('#sheet .ht-pips i.on.hi').count() == 1, 'Lv6 (a yellow pip; the sheet offers Lv7 for 10億)')
+        await shot('fac6')
+        await click('#sheet [data-act="closeSheet"]', 300)
+        ok(await page.locator('.ht-tok.fac.hi[data-k="train"]').count() == 1 and await page.locator('.ht-tok.fac.hi[data-k="train"] em').inner_text() == 'Lv6', 'the board: 練習場 Lv6 with a yellow rim')
+        await click('[data-act="tab"][data-tab="club"]', 250); await click('[data-act="clView"][data-k="main"]', 300)
+        ok('建物 7/7・駅の向こう 0/4' in await page.locator('.ht-link').inner_text(), '経営: 建物 7/7・駅の向こう 0/4')
 
         # ---- an old save (be3e2da): her note, the old スタジアム設備 Lv4 as buildings, the days go on
         await load(SAVES['old'])

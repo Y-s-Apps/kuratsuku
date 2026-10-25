@@ -3,7 +3,8 @@
 // The manager plays like a youth-minded human: the academy and training ground are upgraded whenever money allows,
 // the auto-picked XI plays every match. Prints one line a season.
 // usage: node test/inflation.js <club> <seasons> <runs>   (ENG=path to test another engine; TOWN=all: my club starts with
-//        every one-off building of ホームタウン — クラブハウス・選手寮・室内練習場 among them — to see they barely move the team)
+//        every one-off building of ホームタウン — クラブハウス・選手寮・室内練習場, 駅の向こう among them — to see they barely
+//        move the team; FAC10=1: the four facilities at Lv10 from the start)
 const E = require(process.env.ENG || '../src/engine.js'); const DATA = require('../data.json');
 const club = process.argv[2] || 'yokohamafm', N = +(process.argv[3] || 8), runs = +(process.argv[4] || 1);
 const real = new Set(DATA.players.map(p => p.id));
@@ -16,7 +17,10 @@ for (let r = 0; r < runs; r++) {
   const origin = {};  // pid → real / intake / gem / reborn / other
   for (const p of Object.values(S.players)) origin[p.id] = real.has(p.id) ? 'real' : 'other';
   const tag = () => { for (const p of Object.values(S.players)) if (!origin[p.id]) origin[p.id] = p.reborn ? 'reborn' : p.gem ? 'gem' : (p.gen && E.age(p, S.date) <= 18 && S.clubs[p.club]) ? 'intake' : 'other'; };
-  const ups = () => { for (let k = 0; k < 3; k++) for (const key of ['youth', 'train']) if (S.clubs[S.my].fac[key] < 5 && S.clubs[S.my].funds > E.facCost(S.clubs[S.my].fac[key]) * 1.6) E.upgrade(S, key); };
+  // up to Lv10 since 2026-10-25 (E.FAC_MAX); FAC10=1: every facility at Lv10 from the first day (the most they can do)
+  const MAX = E.FAC_MAX || 5;
+  if (process.env.FAC10) for (const key of ['train', 'youth', 'medical', 'scout']) S.clubs[S.my].fac[key] = MAX;
+  const ups = () => { for (let k = 0; k < 3; k++) for (const key of ['youth', 'train']) if (S.clubs[S.my].fac[key] < MAX && S.clubs[S.my].funds > E.facCost(S.clubs[S.my].fac[key]) * 1.6) E.upgrade(S, key); };
   ups();
   let s = 0, g = 0, mins = {};
   while (g++ < 200000 && s < N) {

@@ -3273,9 +3273,9 @@ function ensureFreeAgents(S) {
 
 /* ---------- facilities ---------- */
 /* Lv6〜10 (2026-10-25, the money a winning club piles up): each costs much more (FAC_HI: 6・10・15・22・30億, 83億 from Lv5
-   to Lv10) and counts FAC_K of a level below 5 (facEff: Lv10 = 6.5), so a full set barely moves the team; the ユース
+   to Lv10) and counts FAC_K of a level below 5 (facEff: Lv10 = 6), so a full set barely moves the team (inflation.js); the ユース
    sends up no more players than at Lv5 (4), only better ones. Other clubs stay at Lv1〜5. */
-const FAC_MAX = 10, FAC_HI = [60000, 100000, 150000, 220000, 300000], FAC_K = 0.3;
+const FAC_MAX = 10, FAC_HI = [60000, 100000, 150000, 220000, 300000], FAC_K = 0.2;
 function facCost(lvl) { return lvl >= 5 ? FAC_HI[lvl - 5] : Math.round(4000 * Math.pow(lvl, 1.6) / 100) * 100; }
 function facEff(lv) { lv = lv || 0; return Math.min(lv, 5) + Math.max(0, lv - 5) * FAC_K; }
 // what a facility does at a level (the sheet shows now → next): numbers as the engine uses them
