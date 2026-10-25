@@ -302,6 +302,7 @@ function value(p, date) { // 万円
   if (a <= 21) v *= 1.3 + potB * 0.05; else if (a <= 24) v *= 1.15 + potB * 0.03;
   else if (a >= 33) v *= 0.3; else if (a >= 30) v *= 0.6;
   if (recentNt(p, date)) v *= NT.value;   // a current international
+  v *= ttValue(p, date);   // 称号: a World Cup in the last 4 years (2026-10-25)
   return Math.max(300, Math.round(v / 100) * 100);
 }
 function wage(p) { return Math.max(400, Math.round(6 * Math.pow(Math.max(0, p.ovr - 45), 2) / 10) * 10); } // 年俸 万円
@@ -663,7 +664,14 @@ function migrate(S, DATA) {
       news(S, '順位表を直しました。これまでJ1どうしのカップ戦・ACLの試合も数えていたので、試合数と勝点が多いクラブがありました。今はリーグ戦だけです。', 'info');
     }
   }
-  S.v = Math.max(S.v || 1, 19);
+  // v20 (2026-10-25): 国際大会. The 2026 World Cup players in J1 get their 称号; Japan's World Cup qualifiers begin with
+  // their window (a save past the start of a round joins it there); the Asian Cup after 2027 is a summer tournament.
+  if ((S.v || 1) < 20) {
+    S.nt = S.nt || { done: {}, res: [], log: [] };
+    const n = tt2026(S);
+    if (!S.fired) news(S, `W杯・各大陸の大会（EURO・コパ・アメリカ・アフリカ選手権・ゴールドカップ・アジアカップ）とW杯のアジア予選が始まった。大会はシーズン後の6〜7月。${n ? `2026年W杯に出たJ1の選手（${n}人）には称号が付いた。` : ''}`, 'nt');
+  }
+  S.v = Math.max(S.v || 1, 20);
   return S;
 }
 // old saves: the season's unplayed league rounds go to the real 2026/27 dates (a round whose date has passed goes to the
@@ -860,7 +868,8 @@ function newGame(DATA, clubId, managerName, todayISO) {
   }
   addAbroad(S, DATA);
   afcData(DATA);
-  S.v = 19; S.presV = 4; S.presets = []; S.nt = { done: {}, res: [], log: [] };
+  S.v = 20; S.presV = 4; S.presets = []; S.nt = { done: {}, res: [], log: [] };
+  tt2026(S);   // the 2026 World Cup players' 称号
   secOf(S).f0 = S.clubs[clubId].funds;
   for (const p of squad(S, clubId)) track(S, p);
   for (const id of S.order) autoLineup(S, id);
@@ -1147,7 +1156,7 @@ function effective(p, role, cond) {
   const c = cond == null ? p.cond : cond;
   const formAdj = clamp((p.form - 6.5) * 1.2, -2, 2);
   const fit = p.at ? clamp((roleScore(p, role) - p.ovr) * 0.4, -2.5, 2.5) : 0;
-  return p.ovr + posPenalty(p, role) + fit - Math.max(0, 100 - c) * 0.12 + formAdj + (p.hot ? p.hot.b : 0);
+  return p.ovr + posPenalty(p, role) + fit - Math.max(0, 100 - c) * 0.12 + formAdj + (p.hot ? p.hot.b : 0) + (p.exp ? p.exp.b : 0);   // exp: 大舞台の経験 (称号)
 }
 // the order slots are filled in: GK, ST/W, CB/FB, MF
 const SLOT_PRI = { GK: 0, ST: 1, SS: 1, LW: 2, RW: 2, CB: 3, LB: 4, RB: 4, DWB: 4, DM: 5, AM: 6, LAM: 6, RAM: 6, WAM: 6, WB: 7, CM: 8, LM: 9, RM: 9 };
@@ -2528,6 +2537,7 @@ function attPull(S, hid, aid) {
   let f = 1 + (fansOf(o) >= FANBASE[4] ? 0.08 : 0) + townAtt(c) + (row && row.p > 3 ? (10 - pos) * 0.012 : 0) + (c.hype || 0);
   if (hid === S.my && Object.values(S.players).some(p => p.reborn && p.club === hid)) f += 0.05;  // a reborn legend draws the fans
   f += Math.min(NT.gateMax, NT.gate * squad(S, hid).filter(p => recentNt(p, S.date)).length);   // internationals draw a few more
+  f += Math.min(TT.gateMax, TT.gate * squad(S, hid).filter(p => ttWc(p, S.date, TT.gateY)).length);   // World Cup players (2026-10-25)
   return f;
 }
 function attendance(S, hid, aid) {
@@ -2616,6 +2626,7 @@ function nextDay(S) {
     const mine = p.club === S.my;
     const it = INTENS[mine ? (p.ti || 'norm') : 'norm'];
     if (p.hot && p.hot.d !== S.date) delete p.hot;
+    if (p.exp && p.exp.d !== S.date) delete p.exp;
     let rec = 6 + med * 0.6 + (built(c, 'house') ? TOWN.b.house.rec : 0) + (mine ? TRAINING[S.training].rec + it.rec : 0);
     if (age(p, S.date) >= 31) rec -= 1;
     p.cond = Math.min(100, p.cond + rec);
@@ -3583,6 +3594,8 @@ function hypeMatch(S, f) {
         if (p) picked.add(p);
       }
     }
+    // 称号 (2026-10-25): in a big match those who have played at a World Cup / won a continental title are a little better
+    if (W0 > 0 || isAfc(f)) for (const p of pool) { const b = ttBig(p); if (b) { p.exp = { d: f.date, b }; (hy.exp || (hy.exp = [])).push({ pid: p.id, side: cid === f.h ? 'h' : 'a', b }); } }
     for (const p of picked) {
       const why = formerClubs(p).has(opp) ? '古巣対決' : lost ? 'リベンジに燃える' : tags.length ? tags[0].jp : up ? '格上相手に燃える' : W0 > 0 ? '大一番' : '気合十分';
       p.hot = { d: f.date, b: HYPE.boost, why };
@@ -4781,7 +4794,30 @@ const NATIONS = {
   EGY: { jp: 'エジプト', r: 77 }, NGA: { jp: 'ナイジェリア', r: 78, bar: 76 }, CIV: { jp: 'コートジボワール', r: 79, bar: 77 }, ALG: { jp: 'アルジェリア', r: 78 },
   TUN: { jp: 'チュニジア', r: 76, bar: 71 }, CMR: { jp: 'カメルーン', r: 76 }, GHA: { jp: 'ガーナ', r: 75 }, RSA: { jp: '南アフリカ', r: 73 }, ISR: { jp: 'イスラエル', r: 75, bar: 72 },
   SCO: { jp: 'スコットランド', r: 77 }, WAL: { jp: 'ウェールズ', r: 76 }, CZE: { jp: 'チェコ', r: 77 }, HUN: { jp: 'ハンガリー', r: 78 }, GRE: { jp: 'ギリシャ', r: 77 }, NZL: { jp: 'ニュージーランド', r: 70 },
+  // 2026-10-25: the rest of the fields of the tournaments and the W杯 qualifiers (strengths estimated on the same scale)
+  ROU: { jp: 'ルーマニア', r: 76 }, SVK: { jp: 'スロバキア', r: 76 }, SVN: { jp: 'スロベニア', r: 75 }, ALB: { jp: 'アルバニア', r: 74 }, GEO: { jp: 'ジョージア', r: 75 },
+  IRL: { jp: 'アイルランド', r: 74 }, BIH: { jp: 'ボスニア・ヘルツェゴビナ', r: 75 }, FIN: { jp: 'フィンランド', r: 72 }, ISL: { jp: 'アイスランド', r: 72 }, MKD: { jp: '北マケドニア', r: 71 }, NIR: { jp: '北アイルランド', r: 72 },
+  BOL: { jp: 'ボリビア', r: 70 },
+  MLI: { jp: 'マリ', r: 76 }, BFA: { jp: 'ブルキナファソ', r: 74 }, COD: { jp: 'コンゴ民主共和国', r: 76 }, CPV: { jp: 'カーボベルデ', r: 74 }, GUI: { jp: 'ギニア', r: 72 },
+  GAB: { jp: 'ガボン', r: 71 }, ZAM: { jp: 'ザンビア', r: 70 }, ANG: { jp: 'アンゴラ', r: 71 }, EQG: { jp: '赤道ギニア', r: 70 }, BEN: { jp: 'ベナン', r: 70 }, UGA: { jp: 'ウガンダ', r: 69 },
+  KEN: { jp: 'ケニア', r: 67 }, TAN: { jp: 'タンザニア', r: 66 }, MOZ: { jp: 'モザンビーク', r: 67 }, SDN: { jp: 'スーダン', r: 66 }, COM: { jp: 'コモロ', r: 66 }, MTN: { jp: 'モーリタニア', r: 68 },
+  ZIM: { jp: 'ジンバブエ', r: 66 }, NAM: { jp: 'ナミビア', r: 66 }, LBY: { jp: 'リビア', r: 68 },
+  HON: { jp: 'ホンジュラス', r: 70 }, SLV: { jp: 'エルサルバドル', r: 66 }, GUA: { jp: 'グアテマラ', r: 67 }, HAI: { jp: 'ハイチ', r: 69 }, CUW: { jp: 'キュラソー', r: 70 },
+  TRI: { jp: 'トリニダード・トバゴ', r: 66 }, SUR: { jp: 'スリナム', r: 67 }, NCA: { jp: 'ニカラグア', r: 63 }, DOM: { jp: 'ドミニカ共和国', r: 63 }, CUB: { jp: 'キューバ', r: 62 },
+  LBN: { jp: 'レバノン', r: 62, afc: 1 }, TKM: { jp: 'トルクメニスタン', r: 60, afc: 1 }, IND: { jp: 'インド', r: 60, afc: 1 }, HKG: { jp: '香港', r: 59, afc: 1 }, MYA: { jp: 'ミャンマー', r: 57, afc: 1 },
+  AFG: { jp: 'アフガニスタン', r: 56, afc: 1 }, TPE: { jp: 'チャイニーズ・タイペイ', r: 55, afc: 1 }, BAN: { jp: 'バングラデシュ', r: 54, afc: 1 }, NEP: { jp: 'ネパール', r: 54, afc: 1 },
+  MDV: { jp: 'モルディブ', r: 52, afc: 1 }, MNG: { jp: 'モンゴル', r: 52, afc: 1 }, LAO: { jp: 'ラオス', r: 52, afc: 1 }, CAM: { jp: 'カンボジア', r: 52, afc: 1 },
 };
+// confederations (AFC is NATIONS[cc].afc)
+const CONF = {
+  UEFA: ['ENG', 'FRA', 'ESP', 'POR', 'NED', 'GER', 'BEL', 'CRO', 'ITA', 'SUI', 'DEN', 'AUT', 'TUR', 'NOR', 'SWE', 'SRB', 'POL', 'UKR', 'SCO', 'WAL', 'CZE', 'HUN', 'GRE', 'ISR', 'ROU', 'SVK', 'SVN', 'ALB', 'GEO', 'IRL', 'BIH', 'FIN', 'ISL', 'MKD', 'NIR'],
+  CONMEBOL: ['ARG', 'BRA', 'URU', 'COL', 'ECU', 'PAR', 'VEN', 'PER', 'CHI', 'BOL'],
+  CAF: ['MAR', 'SEN', 'EGY', 'ALG', 'TUN', 'NGA', 'CIV', 'CMR', 'GHA', 'RSA', 'MLI', 'BFA', 'COD', 'CPV', 'GUI', 'GAB', 'ZAM', 'ANG', 'EQG', 'BEN', 'UGA', 'KEN', 'TAN', 'MOZ', 'SDN', 'COM', 'MTN', 'ZIM', 'NAM', 'LBY'],
+  CONCACAF: ['USA', 'MEX', 'CAN', 'PAN', 'CRC', 'JAM', 'HON', 'SLV', 'GUA', 'HAI', 'CUW', 'TRI', 'SUR', 'NCA', 'DOM', 'CUB'],
+  OFC: ['NZL'],
+};
+const confOf = cc => NATIONS[cc] && NATIONS[cc].afc ? 'AFC' : Object.keys(CONF).find(k => CONF[k].includes(cc)) || null;
+const confList = cf => cf === 'AFC' ? Object.keys(NATIONS).filter(cc => NATIONS[cc].afc) : (CONF[cf] || []).slice();
 // the AFC Asian Cup 2027 (Saudi Arabia, 1/7〜2/5): the real groups (the draw of 2026-05-09)
 const AC_2027 = [['KSA', 'KUW', 'OMA', 'PLE'], ['UZB', 'BHR', 'PRK', 'JOR'], ['IRN', 'SYR', 'KGZ', 'CHN'], ['AUS', 'TJK', 'IRQ', 'SIN'], ['KOR', 'UAE', 'VIE', 'YEM'], ['JPN', 'QAT', 'THA', 'IDN']];
 // Japan's real opponents in the first window of 2026/27 (9/24 ウルグアイ, 9/28 ベネズエラ, 10/1 エクアドル; the 4th was not set)
@@ -4796,6 +4832,7 @@ const NT = {
   value: 1.15, gate: 0.01, gateMax: 0.05,
   ill: 0.01, illCond: [50, 60],   // unwell on the day they join: stays at his club, condition down to 50〜60
   rep: 0.5,            // Japan calls another in his place (a goalkeeper always)
+  pow: [81, 5, 10],    // Japan's strength from its XI (ntPower)
   repJ1: 3,            // ... a J1 player sooner (he is in Japan and can join the next day; the real one of 2026-09-29 came from 町田)
 };
 // in the squad: not one who withdrew before joining (one who left the camp injured was in it)
@@ -4807,7 +4844,11 @@ const recentNt = (p, date) => !!(p.nt && p.nt.last && D.diff(date, p.nt.last) <=
 function ntEvents(sy) {
   const ev = ntWindows(sy).map((w, i) => ({ k: `${sy}w${i}`, kind: 'win', from: w.from, to: w.to, n: w.n, ann: D.add(w.from, -NT.ann), est: !!w.est }));
   const y = sy + 1;
-  if (y >= 2027 && (y - 2027) % 4 === 0) ev.push({ k: `ac${y}`, kind: 'ac', from: `${y}-01-02`, to: `${y}-02-05`, ann: `${y - 1}-12-28`, est: y !== 2027 });
+  // the Asian Cup 2027 in January; from 2032 it is a summer tournament in even years (2026-10-25, FIFA's request to AFC)
+  if (y === 2027) ev.push({ k: `ac${y}`, kind: 'ac', from: `${y}-01-02`, to: `${y}-02-05`, ann: `${y - 1}-12-28`, est: false });
+  // the summer's tournaments overlap the June window: one event (2026-10-25)
+  const tours = tourList(y), w3 = ev[3];
+  if (tours.length) Object.assign(w3, { kind: 'sum', tours: tours.map(t => t.key), wto: w3.to, to: tours.map(t => t.to).concat(w3.to).sort().pop(), est: w3.est || tours.some(t => t.est) });
   return ev.sort((a, b) => a.from.localeCompare(b.from));
 }
 // a player's share of the minutes at his club; abroad, what he can expect at a club of that level
@@ -4867,7 +4908,10 @@ function ntPower(S, cc, pids) {
   const by = g => ps.filter(p => p.pos === g).sort((a, b) => b.ovr - a.ovr);
   const xi = by('GK').slice(0, 1).concat(by('DF').slice(0, 4), by('MF').slice(0, 4), by('FW').slice(0, 2));
   const avg = xi.reduce((a, p) => a + p.ovr, 0) / Math.max(1, xi.length);
-  return 81 + (avg - 80) * 0.6;
+  // 2026-10-25: diminishing (81 + 5·tanh((avg − 80)/10)): the game's Japanese players keep developing while the other
+  // nations stay as they are, and with the linear 81 + (avg − 80)×0.6 Japan went from 82 to 88 in eight seasons — level with
+  // the best in the world — and won World Cups. Now about 82 at the start, 84.5 for an XI of 88, never above 86.
+  return NT.pow[0] + NT.pow[1] * Math.tanh((avg - 80) / NT.pow[2]);
 }
 function poisson(l) { let k = 0, p = 1; const L = Math.exp(-l); do { k++; p *= R(); } while (p > L); return k - 1; }
 // a national-team match: [goals, goals] (home = 0: on neutral ground); ko = a knockout (extra time, then penalties)
@@ -4920,6 +4964,355 @@ function acSim(S, y, jpPids) {
   const champ = ko([[f[0], f[1]]], day(29), '決勝')[0];
   return { groups, games, champ, y };
 }
+/* ---------- 国際大会 (2026-10-25, ユーザーの選んだ案2＝W杯と各大陸の大会、効果は A 成長・B 称号・C 代償・D 開幕時の札) ----------
+   The summer tournaments, all in June-July after the J1 season (秋春制), so with the June FIFA window they make one event
+   (ntEvents: the w3 window becomes kind 'sum' with its tours). Real where known: W杯2030 (スペイン・ポルトガル・モロッコ,
+   the three centenary matches in ウルグアイ・アルゼンチン・パラグアイ, 6/8〜7/21, 48), EURO2028 (英国・アイルランド 6/9〜7/9),
+   アフリカ選手権2027 (ケニア・タンザニア・ウガンダ 6/19〜7/17, then every four years from 2028), ゴールドカップ2027 (June-July,
+   16 with サウジアラビア as the guest). Estimated: W杯2034 (サウジアラビア, dates not announced) and 2038 on the 2030 days, the
+   アジアカップ moving to even years at FIFA's request (2032, 2036…; months not announced — June-July like the others),
+   コパ・アメリカ (2028 host not decided, 16 with six CONCACAF guests as in 2024). Fields: hosts, then the confederation by
+   strength with some luck (W杯: AFC 8・CAF 9・CONCACAF 6・CONMEBOL 6・OFC 1・UEFA 16 + 2 from the play-offs, Japan's place
+   from its own qualifiers below). Every tournament is worked out when the squads are named (tourSim, like acSim) and shown
+   day by day. Japan 26; other nations call their J1 players as in a window. */
+const TOURS = {
+  wc: { jp: 'W杯', n: 48, grow: 2 },
+  ac: { jp: 'アジアカップ', conf: 'AFC', n: 24, grow: 1.5 },
+  euro: { jp: 'EURO', conf: 'UEFA', n: 24, grow: 1.5 },
+  copa: { jp: 'コパ・アメリカ', conf: 'CONMEBOL', guest: ['CONCACAF', 6], n: 16, grow: 1.5 },
+  afcon: { jp: 'アフリカ選手権', conf: 'CAF', n: 24, grow: 1.5 },
+  gold: { jp: 'ゴールドカップ', conf: 'CONCACAF', n: 16, grow: 1.5 },
+};
+const STAGES = ['gs', 'r32', 'r16', 'qf', 'sf', 'f', 'w'];
+const STAGE_JP = { gs: 'グループリーグ', r32: 'ベスト32', r16: 'ベスト16', qf: 'ベスト8', sf: 'ベスト4', f: '準優勝', w: '優勝' };
+const stRank = st => STAGES.indexOf(st);
+// the tournaments of the summer of year y
+function tourList(y) {
+  const out = [], md = (k, a, b, x) => out.push(Object.assign({ k, y, key: k + y, name: TOURS[k].jp + y, from: `${y}-${a}`, to: `${y}-${b}`, hosts: [] }, x || {}));
+  if (y >= 2030 && (y - 2030) % 4 === 0) md('wc', '06-08', '07-21', y === 2030 ? { hosts: ['ESP', 'POR', 'MAR', 'URU', 'ARG', 'PAR'], cent: ['URU', 'ARG', 'PAR'] } : y === 2034 ? { hosts: ['KSA'], est: 1 } : { est: 1 });
+  if (y >= 2028 && y % 4 === 0) {
+    md('euro', '06-09', '07-09', y === 2028 ? { hosts: ['ENG', 'SCO', 'WAL', 'IRL'] } : y === 2032 ? { hosts: ['ITA', 'TUR'], est: 1 } : { est: 1 });
+    md('copa', '06-20', '07-14', { est: 1 });
+    if (y >= 2032) md('ac', '06-19', '07-17', { est: 1 });
+  }
+  if (y === 2027 || (y >= 2028 && y % 4 === 0)) md('afcon', '06-19', '07-17', y === 2027 ? { hosts: ['KEN', 'TAN', 'UGA'] } : { est: 1 });
+  if (y >= 2027 && y % 2 === 1) md('gold', '06-18', '07-11', y === 2027 ? { guest: ['KSA'], est: 1 } : { est: 1 });
+  return out;
+}
+const tourOf = key => tourList(+key.replace(/\D/g, '')).find(t => t.key === key) || null;
+// a strength with some luck, for who gets in (fields, other groups of the qualifiers)
+const rLuck = cc => NATIONS[cc].r + (R() + R() + R() - 1.5) * 3;
+function tourField(S, t) {
+  const T = TOURS[t.k];
+  if (t.k === 'wc') return wcField(S, t);
+  const take = (cf, n, have) => confList(cf).filter(cc => !have.includes(cc)).map(cc => ({ cc, v: rLuck(cc) })).sort((a, b) => b.v - a.v).slice(0, n).map(x => x.cc);
+  let f = t.hosts.filter(cc => NATIONS[cc]).concat(t.guest || []);
+  if (t.k === 'ac') f = f.concat('JPN');   // Japan always qualifies for the Asian Cup
+  if (T.guest) { f = f.concat(confList(T.conf).filter(cc => !f.includes(cc))); f = f.concat(take(T.guest[0], T.n - f.length, f)); }
+  else f = f.concat(take(T.conf, T.n - f.length, f));
+  return f.slice(0, T.n);
+}
+// the World Cup's 48: hosts count in their confederation; Japan and the AFC places from Japan's qualifiers when known
+function wcField(S, t) {
+  const slots = { AFC: 8, CAF: 9, CONCACAF: 6, CONMEBOL: 6, OFC: 1, UEFA: 16 };
+  const W = wqOf(S, t.y, true);
+  if (W) wqFinish(S, W);   // anything not yet played is worked out
+  const f = t.hosts.slice(), po = [];
+  for (const cf of Object.keys(slots)) {
+    let have = f.filter(cc => confOf(cc) === cf);
+    if (cf === 'AFC' && W) have = [...new Set(have.concat(W.q || []))];
+    const rest = confList(cf).filter(cc => !have.includes(cc) && !(cf === 'AFC' && W && (W.out || []).includes(cc))).map(cc => ({ cc, v: rLuck(cc) })).sort((a, b) => b.v - a.v);
+    const n = Math.max(0, slots[cf] - have.length);
+    for (const x of rest.slice(0, n)) if (!f.includes(x.cc)) f.push(x.cc);
+    for (const x of have) if (!f.includes(x)) f.push(x);
+    if (cf !== 'UEFA' && !(cf === 'AFC' && W)) po.push(...rest.slice(n, n + (cf === 'CONCACAF' ? 2 : 1)).map(x => x.cc));   // the play-off: no UEFA
+  }
+  // the intercontinental play-off: Asia's entrant comes from Japan's qualifiers (wqFinish), the rest by strength and luck
+  if (W && W.ic) po.push(W.ic);
+  const won = po.map(cc => ({ cc, v: rLuck(cc) })).sort((a, b) => b.v - a.v).slice(0, 2).map(x => x.cc);
+  if (W && W.ic) { if (won.includes(W.ic)) (W.q = W.q || []).push(W.ic); W.ic = null; }
+  return f.concat(won).slice(0, 48);
+}
+// a bracket's order of seeds (1 v n, then the winners of 1/n and n/2/n/2+1 meet as late as possible)
+function seedOrder(n) { let o = [1]; while (o.length < n) { const m = o.length * 2; o = o.flatMap(s => [s, m + 1 - s]); } return o; }
+// a whole tournament: groups of four from pots (hosts first), the top two and the best thirds into the knockout rounds
+function tourSim(S, t, field, jpPids) {
+  const n = field.length, ng = n / 4, rate = cc => cc === 'JPN' ? ntPower(S, 'JPN', jpPids) : NATIONS[cc].r;
+  const host = cc => t.hosts.includes(cc);
+  const order = field.slice().sort((a, b) => (host(b) - host(a)) || (rate(b) - rate(a)));
+  const pots = [0, 1, 2, 3].map(i => i === 0 ? order.slice(0, ng) : shuffle(order.slice(i * ng, i * ng + ng)));
+  const groups = [...Array(ng)].map((_, g) => pots.map(p => p[g]));
+  // days: three matchdays two groups a day, then the rounds; the last is the final
+  const day = k => D.add(t.from, k), F = D.diff(t.to, t.from);
+  const md = n === 48 ? [5, 11, 17] : [0, 4, 8];
+  const ko = n === 48 ? [[23, 4], [27, 4], [32, 2], [37, 2]] : n === 24 ? [[14, 4], [20, 2], [24, 2]] : [[13, 2], [18, 2]];   // [first day, days]
+  const games = [], tab = {};
+  const play = (a, b, d, stage, k) => {
+    const hm = host(a) ? 1 : host(b) ? -1 : 0, r = ntResult(rate(hm < 0 ? b : a), rate(hm < 0 ? a : b), hm !== 0, k);
+    const g = hm < 0 ? { d, a, b, ga: r.b, gb: r.a, pk: r.pk ? [r.pk[1], r.pk[0]] : null, stage } : { d, a, b, ga: r.a, gb: r.b, pk: r.pk, stage };
+    games.push(g); return g;
+  };
+  groups.forEach((g, gi) => {
+    for (const cc of g) tab[cc] = { cc, gi, p: 0, gd: 0, gf: 0 };
+    [[[0, 1], [2, 3]], [[0, 2], [1, 3]], [[0, 3], [1, 2]]].forEach((mm, mi) => {
+      for (const [i, j] of mm) {
+        let d = day(md[mi] + Math.floor(gi / 2));
+        if (mi === 0 && t.cent && (t.cent.includes(g[i]) || t.cent.includes(g[j]))) d = day(t.cent.indexOf(t.cent.includes(g[i]) ? g[i] : g[j]) ? 1 : 0);   // 100周年: 6/8〜9 in South America
+        const r = play(g[i], g[j], d, 'グループ' + 'ABCDEFGHIJKL'[gi], false);
+        const A = tab[g[i]], B = tab[g[j]];
+        A.gf += r.ga; B.gf += r.gb; A.gd += r.ga - r.gb; B.gd += r.gb - r.ga;
+        if (r.ga > r.gb) A.p += 3; else if (r.ga < r.gb) B.p += 3; else { A.p++; B.p++; }
+      }
+    });
+  });
+  const rank = a => a.sort((x, y) => y.p - x.p || y.gd - x.gd || y.gf - x.gf || rate(y.cc) - rate(x.cc));
+  const st = groups.map(g => rank(g.map(cc => tab[cc])));
+  const nth = n === 48 ? 8 : n === 24 ? 4 : 0;
+  const seeds = rank(st.map(x => x[0])).concat(rank(st.map(x => x[1])), rank(st.map(x => x[2])).slice(0, nth)).map(x => x.cc);
+  const stage = {}; for (const cc of field) stage[cc] = 'gs';
+  let round = seedOrder(seeds.length).map(s => seeds[s - 1]);
+  const names = { 32: ['ラウンド32', 'r32'], 16: ['ラウンド16', 'r16'], 8: ['準々決勝', 'qf'], 4: ['準決勝', 'sf'], 2: ['決勝', 'f'] };
+  let rk = 0;
+  while (round.length > 1) {
+    const [nm, code] = names[round.length], nx = [], m = round.length / 2;
+    for (let i = 0; i < round.length; i += 2) {
+      const d = round.length === 2 ? t.to : day(ko[rk][0] + Math.floor(i / 2 * ko[rk][1] / m));
+      const g = play(round[i], round[i + 1], d, nm, true);
+      const w = g.ga > g.gb || (g.ga === g.gb && g.pk && g.pk[0] > g.pk[1]) ? g.a : g.b;
+      stage[g.a] = stage[g.b] = code; nx.push(w);
+    }
+    round = nx; rk++;
+  }
+  const fin = games[games.length - 1], champ = round[0], runner = fin.a === champ ? fin.b : fin.a;
+  stage[champ] = 'w';
+  return { key: t.key, k: t.k, y: t.y, name: t.name, est: t.est || 0, hosts: t.hosts, field, groups, games: games.sort((a, b) => a.d.localeCompare(b.d)), champ, runner, stage,
+    gb: n === 48 ? ri(6, 8) : n === 24 ? ri(4, 6) : ri(3, 5), F };
+}
+
+// what is kept of a tournament for the event (the card, the bracket) and afterwards
+function tourSave(s) {
+  const ko = s.games.filter(g => !/^グループ/.test(g.stage)).map(g => [g.stage, g.a, g.b, g.ga, g.gb, g.pk || 0, g.d]);
+  return { key: s.key, k: s.k, y: s.y, name: s.name, est: s.est, hosts: s.hosts, champ: s.champ, runner: s.runner, st: s.stage, gb: s.gb, n: s.field.length, groups: s.groups, ko, to: s.games[s.games.length - 1].d };
+}
+// the Asian Cup 2027 (acSim): how far each nation with J1 players got, from its matches
+function acStages(C) {
+  const st = {}, KO = { 'ラウンド16': 'r16', '準々決勝': 'qf', '準決勝': 'sf' };
+  for (const cc of Object.keys(C.sq)) {
+    const gs = C.games.filter(g => g.cc === cc); if (!gs.length) continue;
+    const l = gs[gs.length - 1], won = l.hg > l.ag || (l.hg === l.ag && l.pk && l.pk[0] > l.pk[1]);
+    st[cc] = /^グループ/.test(l.stage) ? 'gs' : l.stage === '決勝' ? (won ? 'w' : 'f') : KO[l.stage] || 'gs';
+  }
+  return st;
+}
+/* 称号 (2026-10-25, 効果B): what a player did at a tournament stays with him (p.nt.tt = [{t, y, cc, st, n, g, gb}]: the
+   tournament, its year, the nation, how far it went, his matches and goals, 得点王). Effects: in a big match (a derby, a
+   cup tie, a top or bottom clash — matchStory — and the ACL) a World Cup player is +1, a World Cup quarter-finalist or a
+   continental champion +2 (TT.big; AI clubs' players too); a World Cup player of the last 8 years draws +1% to his club's
+   home games (max +3%); his market value is ×1.08 for 4 years (ベスト8以上 ×1.15); after a World Cup where he played a
+   European club wants him more (×1.5). The fans of his J1 club grow when he comes back (+0.3%, ベスト8以上 +1%). */
+const TT = { big: 1, big2: 2, gate: 0.01, gateMax: 0.03, gateY: 8, val: 1.08, val2: 1.15, valY: 4, euro: 1.5, fan: 0.003, fan2: 0.01 };
+const ttOf = p => (p && p.nt && p.nt.tt) || [];
+const ttLabel = t => `${TOURS[t.t] ? TOURS[t.t].jp : t.t}${t.y} ${t.st === 'gs' ? '出場' : STAGE_JP[t.st] || ''}`;
+const ttPlayed = t => t.n !== 0;   // the 称号 stays, the edge needs a match (2026: not known, counted)
+function ttBig(p) { let b = 0; for (const t of ttOf(p)) if (ttPlayed(t)) b = Math.max(b, t.t === 'wc' ? (stRank(t.st) >= 3 ? TT.big2 : TT.big) : t.st === 'w' ? TT.big2 : 0); return b; }
+const ttWc = (p, date, yrs) => ttOf(p).some(t => t.t === 'wc' && D.y(date) - t.y <= yrs);
+function ttValue(p, date) { let v = 1; for (const t of ttOf(p)) if (t.t === 'wc' && ttPlayed(t) && D.y(date) - t.y <= TT.valY) v = Math.max(v, stRank(t.st) >= 3 ? TT.val2 : TT.val); return v; }
+const ttEuro = (p, date) => ttOf(p).some(t => t.t === 'wc' && t.n > 0 && D.y(date) - t.y <= 1);
+// the players of the 2026 World Cup who play in J1 (the squads of 2026-06; Japan and Australia went out in the last 32,
+// Korea in the group): their 称号 from the start (効果D)
+const TT_2026 = [['早川 友基', '1999-03-03', 'JPN', 'r32'], ['大迫 敬介', '1999-07-28', 'JPN', 'r32'], ['長友 佑都', '1986-09-12', 'JPN', 'r32'],
+  ['キム スンギュ', '1990-09-30', 'KOR', 'gs'], ['キム テヒョン', '2000-09-17', 'KOR', 'gs'], ['テテ イェンギ', '2000-11-28', 'AUS', 'r32']];
+function tt2026(S) {
+  let n = 0;
+  for (const p of Object.values(S.players)) {
+    const x = !p.gen && TT_2026.find(([nm, b]) => p.name === nm && p.birth === b); if (!x) continue;
+    const nt = p.nt || (p.nt = { cc: x[2], caps: 0, g: 0, calls: 0 });
+    if (!(nt.tt || []).some(t => t.t === 'wc' && t.y === 2026)) { nt.tt = (nt.tt || []).concat({ t: 'wc', y: 2026, cc: x[2], st: x[3], n: null, g: null }); n++; }
+  }
+  return n;
+}
+// the end of a tournament: the 称号, the fans of their clubs, the news, the record
+function tourAward(S, C, T) {
+  if (T.done) return; T.done = 1;
+  const got = [];
+  for (const [cc, ids] of Object.entries(C.sq)) {
+    const st = T.st[cc]; if (!st) continue;
+    for (const id of ids) {
+      const p = S.players[id]; if (!p || !ntIn(C, id)) continue;
+      const a = (C.kind === 'ac' ? C.ap : C.tap || {})[id] || { n: 0, g: 0 };
+      got.push({ p, tg: { t: T.k, y: T.y, cc, st, n: a.n, g: a.g } });
+    }
+  }
+  // 得点王: the most goals among them, if that is what a top scorer of the tournament gets
+  const top = Math.max(0, ...got.map(x => x.tg.g));
+  for (const x of got) if (top >= T.gb && x.tg.g === top) x.tg.gb = 1;
+  for (const { p, tg } of got) {
+    const n = p.nt || (p.nt = { cc: tg.cc, caps: 0, g: 0, calls: 0 });
+    n.tt = (n.tt || []).filter(t => !(t.t === tg.t && t.y === tg.y)).concat(tg);
+    if (S.order.includes(p.club)) fansAdd(S.clubs[p.club], TT.fan + (T.k === 'wc' && stRank(tg.st) >= 3 ? TT.fan2 : 0));
+    if (p.club === S.my) news(S, `${p.name}（${ntName(tg.cc)}）は${T.name} ${STAGE_JP[tg.st]}${tg.n ? `（${tg.n}試合${tg.g ? `${tg.g}得点` : '出場'}）` : '（出場なし）'}${tg.gb ? '。得点王に輝いた' : ''}。`, stRank(tg.st) >= 3 || tg.gb ? 'big' : 'nt');
+  }
+  const jp = T.st.JPN;
+  news(S, `${T.name}は${ntName(T.champ)}が優勝。${jp && T.champ !== 'JPN' ? `日本は${STAGE_JP[jp]}。` : ''}`, T.champ === 'JPN' || (T.k === 'wc' && stRank(jp) >= 3) ? 'big' : 'nt');
+  const N = S.nt;
+  N.th = [{ key: T.key, k: T.k, y: T.y, name: T.name, champ: T.champ, runner: T.runner || null, jp: jp || null, my: got.filter(x => x.p.club === S.my).map(x => ({ pid: x.p.id, name: x.p.name, cc: x.tg.cc, st: x.tg.st, n: x.tg.n, g: x.tg.g, gb: x.tg.gb || 0 })), ko: T.k === 'wc' ? T.ko : undefined }].concat(N.th || []).slice(0, 24);
+}
+
+/* W杯アジア予選 (2026-10-25): the 2030 format isn't decided yet (AFC is talking of a Nations League), so the 2026 one: 2次予選
+   (groups of four, home and away, in the Nov/Mar/Jun windows three seasons before the finals; two go through), 最終予選
+   (18 in three groups of six, home and away, ten matchdays in the four windows of the season before last; the top two
+   qualify), 4次予選 (3rd and 4th: two groups of three in the next Sep/Oct window, the winners qualify), 5次予選 (the two
+   runners-up over two legs in November) and the intercontinental play-off (March). Only Japan's group is played match by
+   match (Japan's games are in its windows); the other groups are worked out when a round ends.
+   S.nt.wq[Y] = { Y, r, grp, fx (matchdays of Japan's group), md, tab, q (AFC teams through to the finals), out, ic, done, h } */
+const WQ_ST = { 2: 'W杯アジア2次予選', 3: 'W杯アジア最終予選', 4: 'W杯アジア4次予選', 5: 'W杯アジア5次予選', 6: 'W杯大陸間プレーオフ' };
+// which World Cup a season's windows qualify for, and the round
+function wqY(sy) { for (let d = 1; d <= 3; d++) { const Y = sy + d; if (Y >= 2030 && (Y - 2030) % 4 === 0) return { Y, r: d === 3 ? 2 : d === 2 ? 3 : 4 }; } return null; }
+function wqOf(S, Y, peek) {
+  const N = S.nt; N.wq = N.wq || {};
+  if (!N.wq[Y] && !peek) N.wq[Y] = { Y, r: 0, md: 0, q: [], out: [], h: [] };
+  return N.wq[Y] || null;
+}
+const afcRank = () => confList('AFC').sort((a, b) => NATIONS[b].r - NATIONS[a].r);
+const wcHosts = Y => (tourList(Y).find(t => t.k === 'wc') || { hosts: [] }).hosts;   // hosts don't play the qualifiers
+// home-and-away matchdays for a group (circle method; Japan is team 0)
+function wqDays(n) {
+  const t = [...Array(n).keys()], one = [];
+  for (let r = 0; r < n - 1; r++) {
+    const ps = []; for (let i = 0; i < n / 2; i++) { const a = t[i], b = t[n - 1 - i]; ps.push(r % 2 ? [b, a] : [a, b]); }
+    one.push(ps); t.splice(1, 0, t.pop());
+  }
+  return one.concat(one.map(ps => ps.map(([a, b]) => [b, a])));
+}
+function wqTab(teams) { return Object.fromEntries(teams.map(cc => [cc, { p: 0, gd: 0, gf: 0, pl: 0 }])); }
+function wqAdd(tab, a, b, ga, gb) {
+  const A = tab[a], B = tab[b]; if (!A || !B) return;
+  A.pl++; B.pl++; A.gf += ga; B.gf += gb; A.gd += ga - gb; B.gd += gb - ga;
+  if (ga > gb) A.p += 3; else if (ga < gb) B.p += 3; else { A.p++; B.p++; }
+}
+const wqRank = tab => Object.keys(tab).sort((a, b) => tab[b].p - tab[a].p || tab[b].gd - tab[a].gd || tab[b].gf - tab[a].gf || NATIONS[b].r - NATIONS[a].r);
+// a whole group (or the rest of one) played out from the strengths
+function wqSimGroup(teams, home) {
+  const tab = wqTab(teams);
+  for (const ps of wqDays(teams.length)) for (const [i, j] of ps) { const r = ntResult(NATIONS[teams[i]].r, NATIONS[teams[j]].r, home); wqAdd(tab, teams[i], teams[j], r.a, r.b); }
+  return wqRank(tab);
+}
+// start a round: Japan's group and its matchdays
+function wqStart(S, W, r) {
+  const R0 = afcRank().filter(cc => cc !== 'JPN' && !wcHosts(W.Y).includes(cc));
+  W.r = r; W.md = 0;
+  if (r === 2) {
+    W.grp = ['JPN', pick(R0.slice(8, 17)), pick(R0.slice(17, 26)), pick(R0.slice(26))];
+    W.fx = wqDays(4);
+  } else if (r === 3) {
+    // the 18: Japan, then the strongest with some luck (the other 2次予選 groups)
+    const all = ['JPN'].concat(R0.map(cc => ({ cc, v: rLuck(cc) })).sort((a, b) => b.v - a.v).slice(0, 17).map(x => x.cc));
+    const srt = all.slice(1).sort((a, b) => NATIONS[b].r - NATIONS[a].r), pots = [[], [], [], [], [], []];
+    pots[0] = ['JPN'].concat(shuffle(srt.slice(0, 2))); for (let i = 1; i < 6; i++) pots[i] = shuffle(srt.slice(2 + (i - 1) * 3, 2 + i * 3));
+    const g3 = [0, 1, 2].map(g => pots.map(p => p[g]));
+    W.grp = g3[0]; W.others = g3.slice(1); W.fx = wqDays(6);
+  } else if (r === 4) {
+    const six = (W.r4 || []).slice().sort((a, b) => NATIONS[b].r - NATIONS[a].r), A = [six[0], six[3], six[4]], B = [six[1], six[2], six[5]];
+    const mine = A.includes('JPN') ? A : B;
+    W.grp = ['JPN'].concat(mine.filter(cc => cc !== 'JPN')); W.others = [A.includes('JPN') ? B : A];
+    W.fx = [[[0, 1]], [[0, 2], [1, 2]]];   // three teams, one round on neutral ground: Japan plays twice
+  } else if (r === 5) { W.grp = W.r5; W.fx = [[[0, 1]], [[1, 0]]]; }
+  else if (r === 6) { W.grp = ['JPN', W.icOpp]; W.fx = [[[0, 1]]]; }
+  W.tab = wqTab(W.grp);
+}
+// Japan's qualifiers in a window (each needs the round to have begun); [] when it isn't a qualifying window for Japan
+function wqFix(S, ev) {
+  if (ev.kind === 'ac' || !/w\d$/.test(ev.k)) return [];
+  const sy = +ev.k.slice(0, 4), wi = +ev.k.slice(-1), Q = wqY(sy); if (!Q) return [];
+  const want = Q.r === 2 ? (wi >= 1 ? 2 : 0) : Q.r === 3 ? 3 : wi === 0 ? 4 : wi === 1 ? 5 : wi === 2 ? 6 : 0;
+  if (!want) return [];
+  const W = wqOf(S, Q.Y);
+  // the first window of a round starts it; a save from before this was added starts where it is (Japan taken to be
+  // through the rounds before), and rounds not played out (a skipped window) are worked out
+  if (!W.done && !W.r) wqStart(S, W, Math.min(want, 3));
+  if (!W.done && W.r < want) wqFinish(S, W, want);
+  if (W.done || W.r !== want) return [];
+  const per = W.r === 2 ? 2 : W.r === 3 ? (wi === 0 ? 4 : 2) : W.r === 4 ? 2 : W.r === 5 ? 2 : 1;
+  const out = [];
+  for (let k = 0; k < per && W.md + k < W.fx.length; k++) {
+    const m = W.md + k, pair = W.fx[m].find(([i, j]) => i === 0 || j === 0); if (!pair) continue;
+    const home = W.r === 4 || W.r === 6 ? 0 : pair[0] === 0 ? 1 : -1;
+    out.push({ opp: W.grp[pair[0] === 0 ? pair[1] : pair[0]], home, stage: WQ_ST[W.r], wq: { Y: W.Y, r: W.r, md: m } });
+  }
+  return out;
+}
+// Japan's qualifier has been played: the table, the other match of the matchday, the end of the round
+function wqPlayed(S, g) {
+  const W = wqOf(S, g.wq.Y, true); if (!W || W.done || W.r !== g.wq.r || W.md > g.wq.md) return;
+  if (W.r === 5) { (W.legs = W.legs || []).push(g.hg - g.ag); }
+  else wqAdd(W.tab, 'JPN', g.opp, g.hg, g.ag);
+  for (const [i, j] of W.fx[g.wq.md]) if (i !== 0 && j !== 0) { const r = ntResult(NATIONS[W.grp[i]].r, NATIONS[W.grp[j]].r, W.r <= 3); wqAdd(W.tab, W.grp[i], W.grp[j], r.a, r.b); }
+  W.md = g.wq.md + 1;
+  if (W.md >= W.fx.length) wqEnd(S, W);
+}
+// a round is over: who goes on, who qualifies, and the news
+function wqEnd(S, W) {
+  const nm = WQ_ST[W.r];
+  if (W.r === 5) {
+    const agg = (W.legs || []).reduce((a, b) => a + b, 0), won = agg > 0 || (agg === 0 && R() < 0.5);
+    W.h.push({ r: 5, ok: won });
+    if (won) { W.icOpp = wqIcOpp(); wqStart(S, W, 6); news(S, `${nm}を突破。日本は大陸間プレーオフ（${natJp(W.icOpp)}）へ。`, 'nt'); }
+    else wqOut(S, W, nm);
+    return;
+  }
+  if (W.r === 6) {
+    const t = W.tab.JPN, won = t.gd > 0 || (t.gd === 0 && R() < 0.5);
+    W.h.push({ r: 6, ok: won });
+    if (won) wqIn(S, W, '大陸間プレーオフに勝ち'); else wqOut(S, W, '大陸間プレーオフ');
+    return;
+  }
+  const order = wqRank(W.tab), pos = order.indexOf('JPN') + 1;
+  W.h.push({ r: W.r, pos, tab: order.map(cc => [cc, W.tab[cc].p, W.tab[cc].gd]) });
+  if (W.r === 2) {
+    if (pos <= 2) { news(S, `${nm}は${pos}位で突破。次は最終予選。`, 'nt'); wqStart(S, W, 3); W.md = 0; }
+    else wqOut(S, W, nm);
+    return;
+  }
+  if (W.r === 3) {
+    const others = (W.others || []).map(g => wqSimGroup(g, true));
+    W.q = [...new Set((W.q || []).concat(order.slice(0, 2).filter(cc => cc !== 'JPN'), ...others.map(o => o.slice(0, 2))))];
+    W.r4 = [order[2], order[3]].concat(...others.map(o => [o[2], o[3]]));
+    W.out = [...new Set((W.out || []).concat(order.slice(4), ...others.map(o => o.slice(4))))];
+    if (pos <= 2) wqIn(S, W, `${nm}を${pos}位で突破し`);
+    else if (pos <= 4) { news(S, `${nm}は${pos}位。日本は4次予選へ回る。`, 'nt'); wqStart(S, W, 4); }
+    else wqOut(S, W, nm);
+    return;
+  }
+  if (W.r === 4) {
+    const other = wqSimGroup(W.others[0], false);
+    W.q = [...new Set(W.q.concat(order[0] === 'JPN' ? [] : [order[0]], other[0]))];
+    W.r5 = [order[1], other[1]];
+    W.out = [...new Set(W.out.concat(order[2], other[2]))];
+    if (pos === 1) wqIn(S, W, `${nm}を1位で突破し`);
+    else if (pos === 2) { news(S, `${nm}は2位。日本は5次予選（${natJp(other[1])}）へ。`, 'nt'); W.r5 = ['JPN', other[1]]; wqStart(S, W, 5); }
+    else wqOut(S, W, nm);
+  }
+}
+function wqIcOpp() { return pick(['CAF', 'CONCACAF', 'CONMEBOL', 'OFC'].flatMap(cf => confList(cf)).filter(cc => NATIONS[cc].r >= 70 && NATIONS[cc].r <= 77)); }
+function wqIn(S, W, how) { W.done = 'q'; W.q = [...new Set((W.q || []).concat('JPN'))]; news(S, `日本代表が${how}、W杯${W.Y}の出場を決めた。`, 'big'); }
+function wqOut(S, W, nm) { W.done = 'out'; W.out = [...new Set((W.out || []).concat('JPN'))]; news(S, `日本代表は${nm}で敗退。W杯${W.Y}の出場を逃した。`, 'big'); }
+// rounds Japan didn't (or doesn't) play match by match: worked out, up to a round (or to the end)
+function wqFinish(S, W, upto) {
+  let guard = 0;
+  while (!W.done && (!upto || W.r < upto) && guard++ < 12) {
+    if (!W.r) { wqStart(S, W, 2); continue; }
+    for (let m = W.md; m < W.fx.length; m++) {
+      const jp = W.fx[m].find(([i, j]) => i === 0 || j === 0);
+      if (jp) { const [i, j] = jp, home = W.r <= 3, r = ntResult(i === 0 ? ntPower(S, 'JPN') : NATIONS[W.grp[i]].r, j === 0 ? ntPower(S, 'JPN') : NATIONS[W.grp[j]].r, home);
+        if (W.r === 5) (W.legs = W.legs || []).push(i === 0 ? r.a - r.b : r.b - r.a); else wqAdd(W.tab, W.grp[i], W.grp[j], r.a, r.b); }
+      for (const [i, j] of W.fx[m]) if (i !== 0 && j !== 0) { const r = ntResult(NATIONS[W.grp[i]].r, NATIONS[W.grp[j]].r, W.r <= 3); wqAdd(W.tab, W.grp[i], W.grp[j], r.a, r.b); }
+    }
+    W.md = W.fx.length; wqEnd(S, W);
+  }
+  // Asia's play-off entrant when Japan isn't it: the best of the rest
+  if (W.done && !W.ic && W.r5 && !W.r5.includes('JPN') && !W.icDone) { W.icDone = 1; W.ic = W.r5.map(cc => ({ cc, v: rLuck(cc) })).sort((a, b) => b.v - a.v)[0].cc; }
+}
+
 // a call-up goes into his record, my club's log and the fans of his J1 club; whether it is his first (rep: 追加招集)
 function ntMark(S, C, cc, p, rep) {
   const N = S.nt, n = p.nt || (p.nt = { cc, caps: 0, g: 0, calls: 0 });
@@ -4935,11 +5328,15 @@ function ntMark(S, C, cc, p, rep) {
 // squads are named: Japan and every nation with J1 players good enough (an Asian Cup: the nations taking part)
 function ntCall(S, ev) {
   const N = S.nt;
-  const size = ev.kind === 'ac' ? NT.size.ac : NT.size[ev.n] || 26;
+  // the summer's tournaments (2026-10-25): who is in them (Japan's World Cup place from its qualifiers)
+  const tours = ev.kind === 'sum' ? ev.tours.map(tourOf).filter(Boolean).map(t => ({ t, field: tourField(S, t) })) : [];
+  const jpT = tours.find(x => x.field.includes('JPN'));
+  const size = ev.kind === 'ac' || jpT ? NT.size.ac : NT.size[ev.n] || 26;
   const jp = ntPickJapan(S, ev, size);
   let ac = null, others;
   if (ev.kind === 'ac') { ac = acSim(S, D.y(ev.to), jp.pids); others = ntPickOthers(S, ev, ac.groups.flat()); }
   else others = ntPickOthers(S, ev);
+  const sims = tours.map(x => tourSim(S, x.t, x.field, jp.pids));
   const sq = Object.assign({ JPN: jp.pids }, others);
   const C = { k: ev.k, kind: ev.kind, from: ev.from, to: ev.to, ann: S.date, sq, kat: jp.kat, games: [], back: {}, ap: {}, dep: false };
   if (ac) {
@@ -4952,16 +5349,27 @@ function ntCall(S, ev) {
     C.games.sort((a, b) => a.d.localeCompare(b.d));
   } else {
     const days = ev.n >= 4 ? [3, 7, 10, 14] : [3, 7];
+    const wf = wqFix(S, ev);   // Japan's World Cup qualifiers in this window (2026-10-25)
     for (const cc of Object.keys(sq)) {
+      // a nation at a tournament: its matches there, and the window's matches only before its camp
+      const tg = [];
+      for (const s of sims) for (const g of s.games) if (g.a === cc || g.b === cc) tg.push({ d: g.d, cc, opp: g.a === cc ? g.b : g.a, home: 0, hg: g.a === cc ? g.ga : g.gb, ag: g.a === cc ? g.gb : g.ga, pk: g.pk ? (g.a === cc ? g.pk : [g.pk[1], g.pk[0]]) : null, stage: g.stage, tour: s.key });
       const used = [];
       days.forEach((dd, i) => {
+        const d = D.add(ev.from, dd);
+        if (tg.length && d >= D.add(tg[0].d, -2)) return;
+        if (S.date > d) return;   // called late (the season ended after the squads were due): what has gone by is not played
+        const q = cc === 'JPN' ? wf[i] : null;
+        if (q) { C.games.push({ d, cc, opp: q.opp, home: q.home, stage: q.stage, wq: q.wq }); used.push(q.opp); return; }
         const opp = (cc === 'JPN' && (NT_OPP[ev.k] || [])[i]) || ntOpp(S, cc, used); used.push(opp);
         const home = cc === 'JPN' ? (ev.est ? R() < 0.7 : 1) : R() < 0.5 ? 1 : 0;
-        C.games.push({ d: D.add(ev.from, dd), cc, opp, home: home ? 1 : -1 });
+        C.games.push({ d, cc, opp, home: home ? 1 : -1 });
       });
-      C.back[cc] = ev.to;
+      C.games.push(...tg);
+      C.back[cc] = tg.length ? tg[tg.length - 1].d : (ev.wto || ev.to);
     }
     C.games.sort((a, b) => a.d.localeCompare(b.d));
+    if (sims.length) { C.tours = sims.map(tourSave); C.tap = {}; }
   }
   N.cur = C;
   // the records, the news and (for my players) the inbox
@@ -4972,7 +5380,8 @@ function ntCall(S, ev) {
   }
   N.lk = Object.assign(N.lk || {}, Object.fromEntries(Object.keys(sq).map(cc => [cc, ev.k])));
   const j1 = jp.pids.map(id => S.players[id]).filter(p => S.order.includes(p.club));
-  const what = ev.kind === 'ac' ? `アジアカップ${D.y(ev.to)}（${jdate(ev.from)}〜）` : `${jdate(ev.from)}〜${jdate(ev.to)}の代表ウィーク`;
+  const what = ev.kind === 'ac' ? `アジアカップ${D.y(ev.to)}（${jdate(ev.from)}〜）` : jpT ? `${jpT.t.name}（${jdate(jpT.t.from)}〜）` : `${jdate(ev.from)}〜${jdate(ev.wto || ev.to)}の代表ウィーク`;
+  for (const s of sims) news(S, `${s.name}の出場${s.field.length}か国が決まった（${jdate(tourOf(s.key).from)}〜${jdate(tourOf(s.key).to)}${s.hosts.length ? `、開催：${s.hosts.map(natJp).join('・')}` : ''}）。${s.field.includes('JPN') ? '日本も出場する。' : ''}`, 'nt');
   news(S, `日本代表メンバー発表（${what}）。Jリーグから${j1.length}人：${j1.map(p => `${p.name}（${S.clubs[p.club].short}）${jp.kat.includes(p.id) ? '※活躍枠' : ''}`).join('、') || 'なし'}。`, 'nt');
   if (rows.length) {
     S.inbox.unshift({ id: S.nextInboxId++, type: 'nt', k: ev.k, kind: ev.kind, rows, from: ev.from, to: ev.to, d: S.date, seen: false, done: false });
@@ -5038,13 +5447,17 @@ const scoreW = p => (p.pos === 'FW' ? 5 : p.pos === 'MF' ? (['OMF', 'SH', 'WG', 
 function ntPlay(S, C, g) {
   g.played = true;
   const ids = (C.sq[g.cc] || []).filter(id => S.players[id] && S.players[id].away && S.players[id].away.cc === g.cc);
-  if (g.hg == null) { const r = ntResult(ntPower(S, g.cc, g.cc === 'JPN' ? ids : null), ntPower(S, g.opp), g.home > 0); g.hg = r.a; g.ag = r.b; if (g.home < 0) { g.hg = r.b; g.ag = r.a; } }
+  // g.hg is always this nation's goals (2026-10-25: an away match used to give it the home side's goals)
+  if (g.hg == null) {
+    const me = ntPower(S, g.cc, g.cc === 'JPN' ? ids : null), op = ntPower(S, g.opp);
+    if (g.home < 0) { const r = ntResult(op, me, true); g.hg = r.b; g.ag = r.a; } else { const r = ntResult(me, op, g.home > 0); g.hg = r.a; g.ag = r.b; }
+  }
   const scorers = [];
   if (g.cc === 'JPN') {
     const { xi, subs } = ntPlayers(S, ids);
     const on = xi.map(p => ({ p, w: scoreW(p) })).concat(subs.map(p => ({ p, w: scoreW(p) * 0.4 })));
     for (let i = 0; i < g.hg && on.length; i++) scorers.push(wpick(on, x => x.w).p);
-    for (const p of xi.concat(subs)) ntApp(S, C, p, scorers.filter(x => x === p).length);
+    for (const p of xi.concat(subs)) ntApp(S, C, p, scorers.filter(x => x === p).length, g);
   } else {
     for (const id of ids) {
       const p = S.players[id]; if (p.inj > 0) continue;
@@ -5052,29 +5465,33 @@ function ntPlay(S, C, g) {
       if (!start && R() < 0.5) continue;
       let gl = 0; for (let i = 0; i < g.hg; i++) if (R() < ({ FW: 0.25, MF: 0.12, DF: 0.04, GK: 0 })[p.pos] * (start ? 1 : 0.5)) gl++;
       if (gl) scorers.push(...Array(gl).fill(p));
-      ntApp(S, C, p, gl);
+      ntApp(S, C, p, gl, g);
     }
   }
   g.sc = scorers.map(p => p.id);
+  const T = g.tour && (C.tours || []).find(t => t.key === g.tour);
+  const label = T ? `${T.name} ${g.stage}` : g.wq ? g.stage : g.stage ? `アジアカップ ${g.stage}` : '国際親善試合';
   if (g.cc === 'JPN') {
-    const N = S.nt; (N.res || (N.res = [])).unshift({ d: g.d, opp: g.opp, hg: g.hg, ag: g.ag, pk: g.pk || null, home: g.home, stage: g.stage || null, sc: g.sc });
+    const N = S.nt; (N.res || (N.res = [])).unshift({ d: g.d, opp: g.opp, hg: g.hg, ag: g.ag, pk: g.pk || null, home: g.home, stage: g.stage || null, sc: g.sc, lb: label });
     if (N.res.length > 30) N.res.length = 30;
   }
   // the news: Japan's results, and my players with any nation
   const mine = [...new Set(g.sc)].map(id => S.players[id]).filter(p => p.club === S.my);
   const res = `${ntName(g.cc)} ${g.hg}-${g.ag} ${natJp(g.opp)}${g.pk ? `（PK ${g.pk[0]}-${g.pk[1]}）` : ''}`;
   const who = [...new Set(g.sc)].map(id => S.players[id]).map(p => `${p.short}${S.order.includes(p.club) ? `（${S.clubs[p.club].short}）` : ''}${g.sc.filter(x => x === p.id).length > 1 ? '×' + g.sc.filter(x => x === p.id).length : ''}`);
-  const label = g.stage ? `アジアカップ ${g.stage}` : '国際親善試合';
   if (g.cc === 'JPN') news(S, `${label}　${res}${who.length ? `　得点：${who.join('、')}` : ''}`, 'nt');
   else if (ids.some(id => S.players[id].club === S.my)) news(S, `${label}　${res}${mine.length ? `　${mine.map(p => p.name).join('・')}が得点` : ''}`, 'nt');
+  if (g.wq) wqPlayed(S, g);   // the qualifying table (after the match's news)
 }
-function ntApp(S, C, p, goals) {
+function ntApp(S, C, p, goals, g) {
   const n = p.nt || (p.nt = { cc: p.away ? p.away.cc : p.nat, caps: 0, g: 0, calls: 1 });
   n.caps++; n.g += goals;
   const a = C.ap[p.id] || (C.ap[p.id] = { n: 0, g: 0 }); a.n++; a.g += goals;
-  // a little growth from the national team
+  const tk = g && g.tour ? g.tour.replace(/\d+$/, '') : null;
+  if (tk) { const t = (C.tap || (C.tap = {}))[p.id] || (C.tap[p.id] = { n: 0, g: 0 }); t.n++; t.g += goals; }
+  // a little growth from the national team (a tournament's match more: the World Cup ×2, the others ×1.5)
   if (p.at && p.pot > p.ovr) {
-    const k = (NT.grow.find(x => age(p, S.date) <= x[0]) || [0, 0.05])[1];
+    const k = (NT.grow.find(x => age(p, S.date) <= x[0]) || [0, 0.05])[1] * (tk ? TOURS[tk].grow : 1);
     const add = Math.min(p.pot - p.ovr, k), T = add / AW_SQ[p.pos], w = AW[p.pos], aMax = attrMax(p);
     p.at = p.at.map((x, i) => Math.round(Math.min(aMax, x + T * w[i]) * 100) / 100);
     p.ovr = clamp(calcOvr(p), 30, ovrMax(p));
@@ -5088,7 +5505,7 @@ function ntApp(S, C, p, goals) {
 // back at the club: tired after the trip (an Asian Cup or a trip far away tires more)
 function ntBack(S, C, p) {
   const cc = p.away.cc, a = C.ap[p.id] || { n: 0, g: 0 };
-  const far = C.kind === 'ac' || (cc !== 'JPN' && !(NATIONS[cc] && NATIONS[cc].afc)) || (cc !== 'JPN' && C.kind === 'win');
+  const far = C.kind === 'ac' || C.games.some(g => g.cc === cc && g.tour) || (cc !== 'JPN' && !(NATIONS[cc] && NATIONS[cc].afc)) || (cc !== 'JPN' && C.kind !== 'ac');
   p.cond = Math.min(p.cond, 100 - (NT.tired.base + NT.tired.app * a.n + (far ? NT.tired.far : 0)));
   delete p.away;
   if (p.club === S.my && !p.retire) news(S, `${p.name}が${ntName(cc)}から戻った（${a.n}試合${a.g ? `${a.g}得点` : '出場'}）。`, 'info');
@@ -5096,13 +5513,15 @@ function ntBack(S, C, p) {
 function ntDay(S) {
   const N = S.nt || (S.nt = { done: {}, res: [], log: [] }); N.done = N.done || {};
   if (!N.cur) {
-    const ev = ntEvents(S.season - 1).concat(ntEvents(S.season)).find(e => !N.done[e.k] && S.date >= e.ann && S.date < e.from);
+    // (2026-10-25) a call can come late, after the date jumped at the end of the season: until the event is over
+    const ev = ntEvents(S.season - 1).concat(ntEvents(S.season)).find(e => !N.done[e.k] && S.date >= e.ann && S.date < e.to);
     if (ev) ntCall(S, ev);
   }
   const C = N.cur; if (!C) return;
   if (!C.dep && S.date >= C.from) ntDepart(S, C);
   for (const g of C.games) if (!g.played && g.d <= S.date) ntPlay(S, C, g);
   if (C.dep) for (const id of Object.values(C.sq).flat()) { const p = S.players[id]; if (p && p.away && S.date > p.away.to) ntBack(S, C, p); }
+  for (const T of C.tours || []) if (!T.done && S.date > T.to) tourAward(S, C, T);   // the day after its final
   const last = Object.values(C.back).concat(C.to).sort().pop();
   if (C.dep && S.date > last && C.games.every(g => g.played)) {
     for (const id of Object.values(C.sq).flat()) { const p = S.players[id]; if (p && p.away) ntBack(S, C, p); }
@@ -5111,7 +5530,9 @@ function ntDay(S) {
       const mine = won.some(id => S.players[id] && S.players[id].club === S.my);
       news(S, `アジアカップ${C.ac.y}は${ntName(C.ac.champ)}が優勝。${mine ? '自クラブの選手もタイトルに貢献した。' : ''}`, C.ac.champ === 'JPN' ? 'big' : 'nt');
       for (const id of won) { const p = S.players[id]; if (p && p.nt) p.nt.ac = (p.nt.ac || 0) + 1; }
+      tourAward(S, C, { key: `ac${C.ac.y}`, k: 'ac', y: C.ac.y, name: `アジアカップ${C.ac.y}`, champ: C.ac.champ, st: acStages(C), gb: 4, n: 24 });
     }
+    for (const T of C.tours || []) tourAward(S, C, T);
     const jpIn = C.sq.JPN.filter(id => ntIn(C, id));
     N.done[C.k] = 1; N.past = [{ k: C.k, kind: C.kind, from: C.from, to: C.to, champ: C.ac ? C.ac.champ : null, jp: jpIn.length, j1: jpIn.filter(id => S.players[id] && S.order.includes(S.players[id].club)).length }].concat(N.past || []).slice(0, 12);
     N.cur = null;
@@ -5154,7 +5575,7 @@ function euroDay(S) {
     if (p.euroNo && D.diff(S.date, p.euroNo) < EURO.wait) continue;
     if (p.club === S.my && (p.keep || S.inbox.some(x => x.type === 'offer' && x.pid === p.id && !x.done))) continue;
     const rec = (p.nt.ks || []).filter(d => D.diff(S.date, d) <= 365).length;
-    const P = ((EURO.p.find(x => age(p, S.date) <= x[0]) || [0, 0.25])[1]) * (p.ovr >= 76 ? 1 : 0.7) * (rec >= 2 ? 1 : EURO.once);
+    const P = Math.min(0.95, ((EURO.p.find(x => age(p, S.date) <= x[0]) || [0, 0.25])[1]) * (p.ovr >= 76 ? 1 : 0.7) * (rec >= 2 ? 1 : EURO.once) * (ttEuro(p, S.date) ? TT.euro : 1));
     if (R() < 1 - Math.pow(1 - P, 1 / days)) euroOffer(S, p);
   }
 }
@@ -5437,7 +5858,7 @@ const API = {
   acceptOffer, rejectOffer, raiseOffer, OFFER_UP, setListed, setKeep, transferDay, bid, NEGO, negoInfo, negoWill, negoOf, negoStart, negoOffer, negoAgree, decideRetirements, shortlist, shortEntry, unshort, bidBlock,
   FORM_DESC, LINE, BUILD, WIDTH, MARK, KILL, CLOSE, setCloseOut, TAC_DEF, tacX, tacLabel, setTac, aiPlan, aiMentality, CLUB_STYLE, widthFit, markTarget,
   NUM_MAX, numOpen, numNext, setNum, checkTitle, leagueLeft, progressCups,
-  NATIONS, NT, natJp, ntName, ntEvents, ntWindows, inNtWindow, ntNow, inNtBreak, recentNt, ntScore, ntForm, ntDay, ntCall, ntPower, ntIn, ntDepart, ntOut, ntReplace, abShare, EURO, euroWanted, euroOffer, euroDay, seasonDates, cupSchedule, J1_2026, AC_2027,
+  NATIONS, CONF, confOf, TOURS, STAGES, STAGE_JP, tourList, tourOf, tourField, tourSim, wqY, wqOf, wqFix, wqFinish, WQ_ST, TT, TT_2026, tt2026, ttOf, ttLabel, ttBig, ttValue, ttWc, ttEuro, tourAward, NT, natJp, ntName, ntEvents, ntWindows, inNtWindow, ntNow, inNtBreak, recentNt, ntScore, ntForm, ntDay, ntCall, ntPower, ntIn, ntDepart, ntOut, ntReplace, abShare, EURO, euroWanted, euroOffer, euroDay, seasonDates, cupSchedule, J1_2026, AC_2027,
   LC_OLD, LC_STAGE, cupNames, roundName, fxEn, cupDepth, cupFinal, tieLegs, tieAgg, lcNew, lc1Alive,
   AFC, AFC_ST, AFC_SPREAD, isAfc, isForeign, afcOn, afcData, afcInfo, afcStr, afcQuick, afcSeason, afcJapan, afcDates, afcProgress, afcTable, afcResched, afcCatchUp, afcMy, afcRecKey, afcDone, afcSquad, afcClub,
   ABROAD, abroadOf, isAbroadClub, price, addAbroad, abroadReluct, nameKey, realNames, reservedNames, freshName, renamePlayer, genPlayer,

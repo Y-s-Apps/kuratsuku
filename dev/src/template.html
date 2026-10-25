@@ -572,6 +572,34 @@ button.apc:not(:disabled):active { transform: scale(.97); }
 .ntrow .nm b { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ntrow .chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .ntrow .st { font-size: 12px; color: var(--muted); }
+/* 国際大会 (2026-10-25): 称号 (案A chips / 案B medal magnets), the W杯 qualifying table, the tournaments of the summer */
+.chip.tt { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.chip.tt.gold { background: linear-gradient(90deg, #e9c45a, #f7dc8a); color: #3b2a00; }
+.chip.tt.silver { background: linear-gradient(90deg, #c9ced6, #e8ebef); color: #2a3038; }
+.chip.tt.bronze { background: linear-gradient(90deg, #c98a52, #e2ae7e); color: #3a1f08; }
+.tt-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.tt-medal { display: grid; justify-items: center; gap: 3px; width: 64px; text-align: center; }
+.tt-medal .md { position: relative; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font: 400 11px/1 var(--f-display); letter-spacing: .02em;
+  background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 48%), var(--md, #3a64d8); color: var(--mdt, #fff);
+  box-shadow: inset 0 0 0 3px var(--mdr, rgba(255,255,255,.35)), inset 0 0 0 4px rgba(0,0,0,.18), var(--mag-shadow); }
+.tt-medal .md small { position: absolute; bottom: 5px; left: 0; right: 0; font: 700 8px/1 var(--f-body); opacity: .85; }
+.tt-medal.w .md { --md: #e2b941; --mdt: #3b2a00; --mdr: #fff1bf; }
+.tt-medal.f .md { --md: #b9c0c9; --mdt: #2a3038; --mdr: #f2f4f7; }
+.tt-medal.sf .md { --md: #c47f45; --mdt: #fff7ef; --mdr: #f0c39c; }
+.tt-medal.qf .md { --md: #1f3f9a; --mdr: #e2b941; }
+.tt-medal b { font-size: 10px; line-height: 1.2; }
+.tt-medal span { font-size: 10px; color: var(--muted); line-height: 1.2; }
+.tt-medal .gb { position: absolute; top: -4px; right: -6px; padding: 1px 4px; border-radius: 4px; background: var(--loss); color: #fff; font: 700 8px/1.3 var(--f-body); }
+.wq-tab { width: 100%; border-collapse: collapse; font-size: 12px; }
+.wq-tab td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; }
+.wq-tab td:first-child { width: 22px; text-align: center; color: var(--muted); }
+.wq-tab td.nm { text-align: left; font-weight: 700; }
+.wq-tab tr.wq-me td { background: color-mix(in srgb, var(--accent-bg) 14%, transparent); }
+.wq-tab tr.wq-go td:first-child { box-shadow: inset 3px 0 0 var(--win); }
+.wq-tab tr.wq-po td:first-child { box-shadow: inset 3px 0 0 var(--accent-bg); }
+.tour-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12px; }
+.tour-list li { display: flex; justify-content: space-between; gap: 8px; }
+.tour-list li b { font-weight: 700; }
 .news li.t-nt span::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; background: #3a64d8; }
 /* 他チーム情報 */
 .team-head { display: flex; align-items: center; gap: 12px; }
