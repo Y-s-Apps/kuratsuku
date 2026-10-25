@@ -726,7 +726,7 @@ function devWeek(S, p, dry, opt) {
     const playing = sh == null ? 1 : ab ? GROW.abBase + sh * GROW.abPlay : rb ? rb.base + sh * rb.play : a <= 23 ? GROW.youngBase + sh * GROW.youngPlay : GROW.oldBase + sh * GROW.oldPlay;
     const tr = isMy ? TRAINING[S.training] || TRAINING.bal : TRAINING.bal;
     const trg = tr.young ? (a <= 23 ? tr.young : tr.rest) : tr.grow;
-    const fac = p.loan ? 2 : c.fac.train;  // on loan: an average J2 training ground
+    const fac = p.loan ? 2 : facEff(c.fac.train);  // on loan: an average J2 training ground
     // a big gap (a 16-year-old prodigy) closes over a few seasons rather than in one: the base rate is capped,
     // and playing time, the team menu and the intensity still multiply on top
     g = Math.min(gap * k / 4.33 * (1 + (fac - 2) * 0.12), rb ? rb.gMax : GROW.gMax) * playing * trg * it.g;
@@ -2072,9 +2072,9 @@ function comboText(S, it) {
 const BP_POOL = '東京90 大阪57 神奈川54 埼玉50 千葉40 愛知28 兵庫26 福岡22 茨城20 静岡17 広島16 群馬14 京都12 熊本12 新潟11 三重11 滋賀10 栃木9 北海道8 大分8 山口7 宮城6 長崎6 宮崎5 沖縄5 徳島5 岡山5 奈良4 佐賀4 鹿児島4 青森4 和歌山4 山梨4 愛媛3 富山3 岩手3 岐阜3 島根2 香川2 山形2 福島2 長野1 石川1 秋田1 福井1 鳥取1 高知1'
   .split(' ').map(s => [s.replace(/\d+$/, ''), +s.match(/\d+$/)[0]]);
 const BP_SUM = BP_POOL.reduce((a, b) => a + b[1], 0);
-function bpFor(id, area) {
+function bpFor(id, area, pct) {
   const h = hash('bp' + id);
-  if (area && h % 100 < 55) return area;
+  if (area && h % 100 < (pct || 55)) return area;
   let r = (h >>> 8) % BP_SUM;
   for (const [k, w] of BP_POOL) { if (r < w) return k; r -= w; }
   return '東京';
@@ -2208,7 +2208,7 @@ function stepMatch(S, M) {
       if (pl) { M.pm[pl.pid].rc = 1; M.pm[pl.pid].rr = rr; M.pm[pl.pid].rt -= 2; M.pm[pl.pid].so = M.min; sd.sent.push(pl.pid); push({ t: 'red', side: k, pid: pl.pid, text: `${pname(S, pl.pid)}に一発レッド！退場（${RED[rr].feed}）` }); }
     }
     // injury
-    const med = S.clubs[sd.cid].fac.medical;
+    const med = facEff(S.clubs[sd.cid].fac.medical);
     if (R() < 0.0021 * (1.15 - med * 0.06) * townInj(S.clubs[sd.cid])) {
       const pl = pick(onPitch(sd));
       if (pl && !M.pm[pl.pid].inj) {
@@ -2533,7 +2533,7 @@ function attPull(S, hid, aid) {
 function attendance(S, hid, aid) {
   const c = S.clubs[hid];
   const f = attPull(S, hid, aid) + R() * 0.12 - 0.06;
-  const att = clamp(fansOf(c) * f, 3000, c.cap * 0.97);
+  const att = clamp(fansOf(c) * f, 3000, c.cap * townFill(c));
   return Math.round(townWorks(c) ? Math.max(3000, att * TOWN.works) : att);   // a stand being built: fewer seats
 }
 const cupGateK = fx => cupDepth(fx) <= 1 ? 0.9 : cupDepth(fx) === 2 ? 0.75 : 0.55;
@@ -2543,7 +2543,7 @@ function attEst(S, fx) {
   if (fx.neutral) return { n: Math.round(NATIONAL.cap * 0.85), cap: NATIONAL.cap, full: false, works: false };
   const c = S.clubs[fx.h]; if (!c || !S.clubs[fx.a]) return null;
   if (c.afc) return { n: Math.round(c.cap * (cupDepth(fx) <= 2 ? 0.72 : 0.47) / 100) * 100, cap: c.cap, full: false, works: false };
-  let n = clamp(fansOf(c) * attPull(S, fx.h, fx.a), 3000, c.cap * 0.97);
+  let n = clamp(fansOf(c) * attPull(S, fx.h, fx.a), 3000, c.cap * townFill(c));
   if (townWorks(c)) n = Math.max(3000, n * TOWN.works);
   if (fx.cup) n *= isAfc(fx) ? (AFC.gate[fx.cup] || [])[fx.cr] || 0.5 : cupGateK(fx);
   return { n: Math.round(n / 100) * 100, cap: c.cap, full: n >= c.cap * (townWorks(c) ? TOWN.works : 1) * 0.95, works: townWorks(c) };
@@ -2612,7 +2612,7 @@ function nextDay(S) {
   // recovery
   for (const p of Object.values(S.players)) {
     const c = S.clubs[p.club]; if (!c) continue;
-    const med = c.fac.medical;
+    const med = facEff(c.fac.medical);
     const mine = p.club === S.my;
     const it = INTENS[mine ? (p.ti || 'norm') : 'norm'];
     if (p.hot && p.hot.d !== S.date) delete p.hot;
@@ -3090,6 +3090,7 @@ function rebornCheck(S, se) {
   if (!pool.length) return null;
   const titles = se ? (se.verdict === 'champion' ? 1 : 0) + ['ec', 'lc'].filter(k => se.cups && se.cups[k] && se.cups[k].champ === S.my).length : 0;
   let chance = REBORN.base + (se && (se.verdict === 'met' || se.verdict === 'champion') ? REBORN.met : 0) + titles * REBORN.title;
+  if (built(S.clubs[S.my], 'museum')) chance += TOWN.b.museum.reborn;   // クラブミュージアム
   if (st.wait >= REBORN.pity) chance = 1;
   if (R() >= chance) { st.wait++; return null; }
   st.wait = 0;
@@ -3257,7 +3258,7 @@ function genPlayer(S, cid, opts) {
   const p = { id: S.nextPid++, club: cid, pos, pp: o.pp || (pos === 'GK' ? 'GK' : genPP(pos)), num, name, short: foreign ? parts[1] : parts[0], birth, nat: foreign ? 'BRA' : 'JPN', ovr: ov, pot, cond: 100, form: 6.5, inj: 0, sus: 0, ycAcc: 0, listed: false, st: blankStats(), hist: [], joined: S.date, gen: true };
   if (o.sty && STYLE[o.sty]) p.sty = o.sty;
   if (o.cap && o.cap > GROW.potMax) p.cap = o.cap;
-  if (!foreign) p.bp = bpFor(p.id, o.local && S.clubs[cid] ? S.clubs[cid].area : null);   // 地元の星
+  if (!foreign) p.bp = bpFor(p.id, o.local && S.clubs[cid] ? S.clubs[cid].area : null, o.local && built(S.clubs[cid], 'school') ? TOWN.b.school.local : 0);   // 地元の星 (サッカースクール: more of them)
   initAttrs(p);
   S.players[p.id] = p;
   return p;
@@ -3271,11 +3272,25 @@ function ensureFreeAgents(S) {
 }
 
 /* ---------- facilities ---------- */
-function facCost(lvl) { return Math.round(4000 * Math.pow(lvl, 1.6) / 100) * 100; }
+/* Lv6〜10 (2026-10-25, the money a winning club piles up): each costs much more (FAC_HI: 6・10・15・22・30億, 83億 from Lv5
+   to Lv10) and counts FAC_K of a level below 5 (facEff: Lv10 = 6.5), so a full set barely moves the team; the ユース
+   sends up no more players than at Lv5 (4), only better ones. Other clubs stay at Lv1〜5. */
+const FAC_MAX = 10, FAC_HI = [60000, 100000, 150000, 220000, 300000], FAC_K = 0.3;
+function facCost(lvl) { return lvl >= 5 ? FAC_HI[lvl - 5] : Math.round(4000 * Math.pow(lvl, 1.6) / 100) * 100; }
+function facEff(lv) { lv = lv || 0; return Math.min(lv, 5) + Math.max(0, lv - 5) * FAC_K; }
+// what a facility does at a level (the sheet shows now → next): numbers as the engine uses them
+function facFx(k, lv) {
+  const e = facEff(lv);
+  if (k === 'train') return { grow: 1 + (e - 2) * 0.12 };
+  if (k === 'youth') return { n: 2 + Math.floor(Math.min(5, lv) / 2), gem: GEM.base + GEM.lv * e, ovr: e * INTAKE.lvO, pot: e * INTAKE.lvP };
+  if (k === 'medical') return { inj: 1.15 - e * 0.06, rec: e * 0.6 };
+  if (k === 'scout') return { pot: (e - 1) * 2 };
+  return {};
+}
 function upgrade(S, key) {
   if (!FACILITY[key]) return { ok: false, msg: 'この施設はありません' };
   const c = S.clubs[S.my]; const lv = c.fac[key];
-  if (lv >= 5) return { ok: false, msg: 'すでに最大レベルです' };
+  if (lv >= FAC_MAX) return { ok: false, msg: 'すでに最大レベルです' };
   const cost = facCost(lv);
   if (c.funds < cost) return { ok: false, msg: `資金が足りません（${money(cost)}）` };
   c.funds -= cost; c.fin.fac += cost; c.fac[key] = lv + 1;
@@ -3308,7 +3323,16 @@ const TOWN = {
     house: { jp: 'クラブハウス', cost: 60000, mo: 5, up: 150, rec: 0.6, will: 0.05 },
     dorm: { jp: '選手寮', cost: 50000, mo: 4, up: 120, age: 21, young: 1.06, pot: 1 },
     indoor: { jp: '室内練習場', cost: 80000, mo: 6, up: 200, inj: 0.85 },
+    // 駅の向こう (2026-10-25): open once the 7 buildings above are up (TOWN.west). reborn: + the chance of a 転生 each season,
+    // fill: a full house is this share of the seats (97% without), local: % of the academy's own players born in the
+    // club's prefecture (55% without), yo: the academy graduates' 総合力
+    museum: { jp: 'クラブミュージアム', cost: 300000, mo: 6, up: 300, per: 0.01, tgt: 0.03, fan: 0.02, reborn: 0.1, east: 1 },
+    station: { jp: 'スタジアム前駅', cost: 500000, mo: 12, up: 200, att: 0.04, fill: 0.99, tgt: 0.02, fan: 0.01, east: 1 },
+    school: { jp: 'サッカースクール', cost: 200000, mo: 4, up: 150, local: 80, yo: 1, tgt: 0.02, fan: 0.01, east: 1 },
+    hotel: { jp: 'クラブホテル', cost: 600000, mo: 12, up: 400, att: 0.02, per: 0.03, east: 1 },
   },
+  west: ['roof', 'food', 'shop', 'sclub', 'house', 'dorm', 'indoor'],
+  fill: 0.97,    // a full house: this share of the seats
   per: 0.22,     // a spectator's ticket (万円; was 0.2 + スタジアム設備 Lv2 × 0.01)
   works: 0.9,    // the home crowd while a stand is being built
   facUp: { train: 80, youth: 80, medical: 80, scout: 40 },   // upkeep a month for each facility level above the start
@@ -3322,6 +3346,10 @@ const TOWN = {
   hist: 40,      // my club's supporters kept for the chart (c.fanH: the start, each month, each new season)
 };
 const TOWN_KEYS = Object.keys(TOWN.b);
+const TOWN_EAST = TOWN_KEYS.filter(k => TOWN.b[k].east);
+// 駅の向こう is open when every building around the stadium is up (the stands don't count)
+function townEast(c) { return TOWN.west.every(k => built(c, k)); }
+function townFill(c) { return built(c, 'station') ? TOWN.b.station.fill : TOWN.fill; }
 function townOf(c) { if (!c.town) c.town = { b: {}, exp: 0, job: null }; if (!c.town.b) c.town.b = {}; return c.town; }
 function built(c, k) { return !!(c && c.town && c.town.b && c.town.b[k]); }
 function townWorks(c) { return !!(c && c.town && c.town.job && c.town.job.k === 'exp'); }
@@ -3347,6 +3375,7 @@ function townCan(S, k, cid) {
   const c = S.clubs[cid || S.my]; if (!c || !TOWN.b[k]) return { ok: false, msg: '建てられません' };
   const nx = townNext(c, k), T = townOf(c);
   if (!nx) return { ok: false, msg: k === 'exp' ? 'これ以上は増築できません' : 'すでに建っています' };
+  if (TOWN.b[k].east && !townEast(c)) return { ok: false, msg: `駅の向こうは、スタジアムのまわりの建物を${TOWN.west.length}つ建てると開きます`, locked: true, ...nx };
   if (T.job) return { ok: false, msg: `${TOWN.b[T.job.k].jp}の工事中です（${jdate(T.job.to)}完成予定）`, busy: true, ...nx };
   if (c.funds < nx.cost) return { ok: false, msg: `資金が足りません（${money(nx.cost)}）`, short: true, ...nx };
   return { ok: true, ...nx };
@@ -3376,7 +3405,7 @@ function townDone(S, c) {
   if (c.id === S.my) {
     const text = j.k === 'exp' ? `スタジアムの増築が完成しました。収容は${c.cap.toLocaleString('ja-JP')}人になりました。` : `${b.jp}が完成しました。`;
     news(S, `【完成】${text}`, 'big');
-    secPost(S, 'built', { k: j.k, step: j.step || 0, cap: c.cap, text }, { stop: true });
+    secPost(S, 'built', { k: j.k, step: j.step || 0, cap: c.cap, text, east: TOWN.west.includes(j.k) && townEast(c) ? 1 : 0 }, { stop: true });
   } else if (j.k === 'exp' && S.order.includes(c.id)) news(S, `${c.short}のスタジアムが${b.seats.toLocaleString('ja-JP')}席増えて、${c.cap.toLocaleString('ja-JP')}人収容に。`, 'info');
 }
 // --- supporters ---
@@ -3450,7 +3479,8 @@ function townInfo(S, cid) {
   return { fans: fansOf(c), target: Math.round(fansTarget(c)), cap: c.cap, att, full: att != null ? att / Math.max(1, c.cap) : null, per: gatePer(c), upkeep: townUpkeep(c), upF,
     job: T.job ? { ...T.job, jp: TOWN.b[T.job.k].jp, left: Math.max(0, D.diff(T.job.to, S.date)), days: Math.max(1, D.diff(T.job.to, T.job.from)) } : null,
     b: TOWN_KEYS.map(k => ({ k, jp: TOWN.b[k].jp, built: k === 'exp' ? (T.exp || 0) : !!(T.b && T.b[k]), next: townNext(c, k) })),
-    hist: h.slice(), fans0: s0 && c.id === S.my ? s0[1] : null, games, works: townWorks(c) };
+    hist: h.slice(), fans0: s0 && c.id === S.my ? s0[1] : null, games, works: townWorks(c),
+    east: { open: townEast(c), west: TOWN.west.filter(k => built(c, k)).length, n: TOWN_EAST.filter(k => built(c, k)).length }, fill: townFill(c) };
 }
 
 /* ---------- firing & offers ---------- */
@@ -4455,7 +4485,7 @@ function sendScout(S, key) {
 }
 function scoutReturns(S) {
   if (!S.scout || S.date < S.scout.back) return;
-  const sc = SCOUT[S.scout.key]; const lv = (S.clubs[S.my].fac.scout || 1);
+  const sc = SCOUT[S.scout.key]; const lv = facEff(S.clubs[S.my].fac.scout || 1);
   const pids = [];
   for (let i = 0; i < 3; i++) {
     const a = ri(sc.age[0], sc.age[1]);
@@ -4659,16 +4689,16 @@ function rollover(S) {
   // youth intake
   for (const cid of S.order) {
     const c = S.clubs[cid];
-    const k = cid === S.my ? 2 + Math.floor(c.fac.youth / 2) : 2;
-    const base = clubBase(S, cid), lv = cid === S.my ? c.fac.youth : 2;
+    const k = cid === S.my ? 2 + Math.floor(Math.min(5, c.fac.youth) / 2) : 2;   // Lv6〜10 add quality, not players
+    const base = clubBase(S, cid), lv = cid === S.my ? facEff(c.fac.youth) : 2, sch = built(c, 'school') ? TOWN.b.school.yo : 0;
     for (let i = 0; i < k; i++) {
       const pt = intakePot(S, cid, lv);
-      const pr = genPlayer(S, cid, { age: 18, foreign: false, local: true, ovr: Math.round(base + INTAKE.ovr + lv * INTAKE.lvO) + ri(-2, 2), pot: pt.pot, cap: pt.cap });
+      const pr = genPlayer(S, cid, { age: 18, foreign: false, local: true, ovr: Math.round(base + INTAKE.ovr + lv * INTAKE.lvO) + sch + ri(-2, 2), pot: pt.pot, cap: pt.cap });
       pr.yo = cid;   // ユース出身 (2026-10-15: earlier academy players aren't marked)
       if (cid === S.my) { news(S, `ユースから${pr.name}（${pr.pos}）がトップ昇格。`, 'grow'); track(S, pr); }
     }
     // ユースの逸材: now and then a 16-17-year-old with a huge ceiling (a better academy finds them more often)
-    const gemP = cid === S.my ? GEM.base + GEM.lv * c.fac.youth : GEM.ai;
+    const gemP = cid === S.my ? GEM.base + GEM.lv * lv : GEM.ai;
     if (R() < gemP) {
       const pt = gemPot(lv);
       const pr = genPlayer(S, cid, { age: 16, foreign: false, local: true, pos: wpick(['DF', 'MF', 'FW'], x => ({ DF: 2.6, MF: 3.4, FW: 2.6 })[x]), ovr: base - 10 + Math.round(lv / 2) + ri(-2, 2), pot: pt.pot, cap: pt.cap, sty: pick(['tech', 'tech', 'speed', 'phys', '']) });
@@ -5349,7 +5379,7 @@ const API = {
   LC_OLD, LC_STAGE, cupNames, roundName, fxEn, cupDepth, cupFinal, tieLegs, tieAgg, lcNew, lc1Alive,
   AFC, AFC_ST, AFC_SPREAD, isAfc, isForeign, afcOn, afcData, afcInfo, afcStr, afcQuick, afcSeason, afcJapan, afcDates, afcProgress, afcTable, afcResched, afcCatchUp, afcMy, afcRecKey, afcDone, afcSquad, afcClub,
   ABROAD, abroadOf, isAbroadClub, price, addAbroad, abroadReluct, nameKey, realNames, reservedNames, freshName, renamePlayer, genPlayer,
-  CARDS, BOARD, BOARD_LV, BOARD_EXP, boardExp, boardLv, boardGrace, tenure, DIST, distMonth, EXPECT, expectPower, setExpectations, CUPS, CUP_PRIZE, NATIONAL, fxLabel, cupResult, cupWinner, hypeMatch, HYPE, SUB_RATE, subRate, STYLE, GROW, RARE, INTAKE, potCap, clubBase, devWeek, shareFor, LOAN, GEM, REBORN, LEGENDS, legendOf, rebornCheck, makeReborn, rebornNum, myLoans, loanCan, loanOptions, loanOut, growthOutlook, weeksLeft, yearsTo, bigGame, rivalry, SCOUT, sendScout, playShare, marketList, ensureFreeAgents, upgrade, facCost, TOWN, townOf, built, townNext, townCan, townBuild, townDay, townUpkeep, townInfo, townSeason, townInj, townAtt, gatePer, attEst, fansLog, addMonths, fansOf, fansTarget, fansAdd, fansMatch, fansSeason, fansMonth, intakePot, takeJob, rollover, endSeason, news, fire,
+  CARDS, BOARD, BOARD_LV, BOARD_EXP, boardExp, boardLv, boardGrace, tenure, DIST, distMonth, EXPECT, expectPower, setExpectations, CUPS, CUP_PRIZE, NATIONAL, fxLabel, cupResult, cupWinner, hypeMatch, HYPE, SUB_RATE, subRate, STYLE, GROW, RARE, INTAKE, potCap, clubBase, devWeek, shareFor, LOAN, GEM, REBORN, LEGENDS, legendOf, rebornCheck, makeReborn, rebornNum, myLoans, loanCan, loanOptions, loanOut, growthOutlook, weeksLeft, yearsTo, bigGame, rivalry, SCOUT, sendScout, playShare, marketList, ensureFreeAgents, upgrade, facCost, facEff, facFx, FAC_MAX, TOWN, TOWN_EAST, townEast, townFill, townOf, built, townNext, townCan, townBuild, townDay, townUpkeep, townInfo, townSeason, townInj, townAtt, gatePer, attEst, fansLog, addMonths, fansOf, fansTarget, fansAdd, fansMatch, fansSeason, fansMonth, intakePot, takeJob, rollover, endSeason, news, fire,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Engine = API;
 })(typeof window !== 'undefined' ? window : globalThis);

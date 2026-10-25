@@ -948,8 +948,8 @@ Object.assign(SEC_VIEW, {
     title: n => n.data.k === 'exp' ? `スタジアム増築 ${n.data.step}期が完成` : `${E.TOWN.b[n.data.k].jp}が完成`,
     body: n => { const k = n.data.k, B = E.TOWN.b[k];
       return `<div class="ht-done"><span class="ht-mag built lg">${htIc(k)}</span><div class="t"><b>${k === 'exp' ? `収容 ${(n.data.cap || 0).toLocaleString('ja-JP')}席` : esc(B.jp)}</b><small>維持費 月${E.money(B.up)}（来月から）</small></div></div>
-        ${htChips(k)}<p class="small" style="margin:0">${k === 'exp' ? '席が増えたので、満員で入れなかったサポーターも入れます。' : ''}${B.fan ? `完成を聞いて、サポーターが${Math.round(B.fan * 100)}%増えました。` : ''}</p>
-        <button class="btn primary block" data-act="htGo" style="min-height:44px">ホームタウンを見る</button>`; },
+        ${htChips(k)}<p class="small" style="margin:0">${k === 'exp' ? '席が増えたので、満員で入れなかったサポーターも入れます。' : ''}${B.fan ? `完成を聞いて、サポーターが${Math.round(B.fan * 100)}%増えました。` : ''}${n.data.east ? '<br>スタジアムのまわりの建物がそろったので、<b>駅の向こう</b>に新しい区画が開きました。' : ''}</p>
+        <button class="btn primary block" data-act="htGo" data-k="${n.data.east ? 'museum' : k}" style="min-height:44px">${n.data.east ? '駅の向こうを見る' : 'ホームタウンを見る'}</button>`; },
     done: 'わかりました',
   },
   town: {
@@ -1185,6 +1185,11 @@ const HT_IC = {
   youth: '<path d="M12 21v-9"/><path d="M12 12c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/>',
   medical: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>',
   scout: '<circle cx="7" cy="15" r="3.5"/><circle cx="17" cy="15" r="3.5"/><path d="M10.5 15h3M7 11.5l2-6h1.5M17 11.5l-2-6h-1.5"/>',
+  museum: '<path d="M3 9l9-5 9 5z"/><path d="M4 20h16M6 10v8M10 10v8M14 10v8M18 10v8"/>',
+  station: '<rect x="6" y="3" width="12" height="13" rx="3"/><path d="M6 9.5h12"/><circle cx="9.2" cy="12.8" r=".9"/><circle cx="14.8" cy="12.8" r=".9"/><path d="M8.5 21l2-5M15.5 21l-2-5"/>',
+  school: '<circle cx="12" cy="12" r="8"/><path d="M12 8.6l3.2 2.3-1.2 3.7h-4l-1.2-3.7z"/><path d="M12 4v4.6M19.6 9.5l-4.4 1.4M16.7 18.5l-2.7-3.9M7.3 18.5l2.7-3.9M4.4 9.5l4.4 1.4"/>',
+  hotel: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9.5 7.5v7M14.5 7.5v7M9.5 11h5"/><path d="M10 21v-3h4v3"/>',
+  lock: '<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>',
   crowd: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.2 14.6A4.4 4.4 0 0 1 21 18.8"/>',
 };
 const htIc = (k, cls) => `<svg class="${cls || 'ht-ic'}" viewBox="0 0 24 24" aria-hidden="true">${HT_IC[k] || ''}</svg>`;
@@ -1193,8 +1198,12 @@ const ppl = n => { n = Math.round(n || 0); const r = n % 10000; return n >= 1000
 const yen = man => `${Math.round(man * 10000).toLocaleString('ja-JP')}円`;
 const sgn = n => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toLocaleString('ja-JP')}`;
 const HT_FAC = ['train', 'youth', 'medical', 'scout'];
-const HT_SHORT = { exp: '増築', roof: '屋根・ビジョン', food: 'グルメ', shop: 'ショップ', sclub: 'サポーターズ', house: 'クラブハウス', dorm: '選手寮', indoor: '室内練習場' };
-const HT_POS = { stad: [158, 202], exp: [262, 146], train: [52, 60], youth: [134, 60], medical: [216, 60], scout: [298, 60], shop: [40, 170], food: [40, 258], roof: [312, 196], house: [52, 330], dorm: [134, 330], indoor: [216, 330], sclub: [298, 330] };
+const HT_SHORT = { exp: '増築', roof: '屋根・ビジョン', food: 'グルメ', shop: 'ショップ', sclub: 'サポーターズ', house: 'クラブハウス', dorm: '選手寮', indoor: '室内練習場', museum: 'ミュージアム', station: '新駅', school: 'スクール', hotel: 'ホテル' };
+const HT_POS = { stad: [158, 202], exp: [262, 146], train: [52, 60], youth: [134, 60], medical: [216, 60], scout: [298, 60], shop: [40, 170], food: [40, 258], roof: [306, 196], house: [52, 330], dorm: [134, 330], indoor: [216, 330], sclub: [298, 330] };
+// 駅の向こう (2026-10-25): 案1 = the board goes on below (a frame like the facilities'), 案2 = a second board of its own
+const HT_POS1 = { station: [52, 530], museum: [134, 530], school: [216, 530], hotel: [298, 530] };
+const HT_POS2 = { station: [180, 84], museum: [70, 222], hotel: [292, 222], school: [262, 352] };
+const htMode = () => window.KTK_HT || 2;   // the mock: which layout (removed once one is chosen)
 const HT_DESC = {
   exp: 'スタンドを5,000席増やします。満員で入れなかったサポーターが入れるようになり、入場料が増えます。工事中のホーム戦は、席が減るので観客が1割少なくなります。',
   roof: 'スタンドを覆う屋根と大型ビジョン。雨の日も観やすく、試合の熱気が伝わるスタジアムに。観客が増え、1人あたりの売上も上がります。',
@@ -1204,6 +1213,10 @@ const HT_DESC = {
   house: '練習の合間に体を休める場所。選手のコンディションが毎日少し早く戻り、移籍の交渉で「行ってもいい」と思われやすくなります。',
   dorm: '若手が暮らす寮。21歳以下の選手が少し早く伸び、ユースから上がってくる選手の伸びしろが少し大きくなります。',
   indoor: '天気に左右されない練習場。試合と練習でのケガが減ります。',
+  museum: 'クラブの歴史とレジェンドを伝える展示館。往年の名選手の魂を継ぐ若者が現れやすくなり（転生）、街の誇りになってサポーターが増えます。',
+  station: 'スタジアムの目の前に新しい駅。来やすくなって観客が増え、満員の試合でも、もう少したくさんのサポーターが入れます。',
+  school: '子どもたちのサッカースクール。地元生まれの選手がユースに集まり（地元の星）、昇格してくる選手が少しうまくなります。',
+  hotel: 'スタジアムの隣のホテル。遠くのサポーターも泊まりがけで来られるようになり、観客と1人あたりの売上が増えます。',
 };
 // what a building does, as chips
 function htFx(k) {
@@ -1217,6 +1230,10 @@ function htFx(k) {
   if (b.will) out.push(`移籍の意思 +${pc(b.will)}`);
   if (b.young) out.push(`${b.age}歳以下の成長 ×${b.young}`, `ユース昇格 伸びしろ +${b.pot}`);
   if (b.inj) out.push(`ケガ −${pc(1 - b.inj)}`);
+  if (b.reborn) out.push(`転生の確率 +${pc(b.reborn)}`);
+  if (b.fill) out.push(`満員の上限 ${pc(E.TOWN.fill)}→${pc(b.fill)}`);
+  if (b.local) out.push(`ユースの地元出身 55→${b.local}%`);
+  if (b.yo) out.push(`ユース昇格 総合力 +${b.yo}`);
   return out;
 }
 const htChips = k => `<div class="ht-fx">${htFx(k).map(x => `<span class="chip acc">${x}</span>`).join('')}</div>`;
@@ -1251,12 +1268,21 @@ function viewTown() {
   const d0 = I.fans0 != null ? I.fans - I.fans0 : null;
   const over = Math.round((I.fans - I.cap) / 100) * 100;
   const note = over >= 500 ? `満員の試合は、席が取れないサポーターがおよそ${ppl(over)}人。`
-    : I.full != null && I.full >= 0.9 ? 'ほぼ満員。サポーターが増えたら増築の出番です。'
+    : I.full != null && I.full >= 0.9 ? (E.townNext(c, 'exp') || (job && job.k === 'exp') ? 'ほぼ満員。サポーターが増えたら増築の出番です。' : `ほぼ満員。スタジアムはこれ以上増築できません。${E.built(c, 'station') ? '' : I.east.open ? '駅の向こうに新駅ができると、もう少し入れます。' : ''}`)
     : I.att != null ? `まだ席に余裕があります（平均で約${ppl(Math.round((I.cap - I.att) / 100) * 100)}席の空き）。` : '今季のホーム戦はまだありません。';
   const x = px => `${(px / 361 * 100).toFixed(2)}%`;
-  const tok = (k, st, label, sub, aria) => { const [px_, py] = HT_POS[k]; return `<button class="ht-tok ${st}" style="left:${x(px_)};top:${py}px" data-act="htOpen" data-k="${k}" aria-label="${esc(aria)}"><span class="ht-mag ${st}">${htIc(st === 'job' ? 'crane' : k)}${st === 'fac' ? `<em>Lv${sub}</em>` : ''}</span><span class="lbl">${label}</span>${st === 'empty' && sub ? `<span class="pr">${sub}</span>` : ''}</button>`; };
+  const tok = (k, st, label, sub, aria, pos) => { const [px_, py] = (pos || HT_POS)[k], s0 = st.split(' ')[0]; return `<button class="ht-tok ${st}" style="left:${x(px_)};top:${py}px" data-act="htOpen" data-k="${k}" aria-label="${esc(aria)}"><span class="ht-mag ${st}">${htIc(s0 === 'job' ? 'crane' : k)}${s0 === 'fac' ? `<em>Lv${sub}</em>` : ''}</span><span class="lbl">${label}</span>${s0 === 'empty' && sub ? `<span class="pr">${sub}</span>` : ''}</button>`; };
   const oku = v => E.money(v).replace('円', '');
-  const facs = HT_FAC.map(k => tok(k, 'fac', E.FACILITY[k].jp, c.fac[k], `${E.FACILITY[k].jp} Lv${c.fac[k]}`)).join('');
+  const facs = HT_FAC.map(k => tok(k, `fac${c.fac[k] > 5 ? ' hi' : ''}`, E.FACILITY[k].jp, c.fac[k], `${E.FACILITY[k].jp} Lv${c.fac[k]}`)).join('');
+  // 駅の向こう: shut (a lock and how many are left), or the four buildings
+  const east = pos => E.TOWN_EAST.map(k => {
+    const B = E.TOWN.b[k];
+    if (job && job.k === k) return tok(k, 'job', `工事中 ${pct}%`, null, `${B.jp}（工事中 ${pct}%）`, pos);
+    if (E.built(c, k)) return tok(k, 'built', HT_SHORT[k], null, `${B.jp}（完成）`, pos);
+    return tok(k, `empty${I.east.open ? '' : ' shut'}`, HT_SHORT[k], oku(B.cost), `${B.jp}（${E.money(B.cost)}${I.east.open ? '' : '・まだ建てられません'}）`, pos);
+  }).join('');
+  const left = E.TOWN.west.length - I.east.west;
+  const shut = I.east.open ? '' : `<span class="ht-shut">${htIc('lock')}スタジアムのまわりの建物を${E.TOWN.west.length}つ建てると開きます（あと${left}つ）</span>`;
   const blds = ['shop', 'food', 'roof', 'house', 'dorm', 'indoor', 'sclub'].map(k => {
     const B = E.TOWN.b[k];
     if (job && job.k === k) return tok(k, 'job', `工事中 ${pct}%`, null, `${B.jp}（工事中 ${pct}%）`);
@@ -1270,20 +1296,42 @@ function viewTown() {
   const stad = `<button class="ht-stad${job && job.k === 'exp' ? ' works' : ''}" style="left:${x(HT_POS.stad[0])};top:${HT_POS.stad[1]}px;--n:${n}" data-act="htOpen" data-k="exp" aria-label="${esc(c.stadium || 'スタジアム')}（収容 ${I.cap.toLocaleString('ja-JP')}席）">
     <span class="c">${Array.from({ length: n }, (_, i) => `<span class="st" style="--i:${n - i}"></span>`).join('')}<span class="ring"></span><span class="bowl"></span><span class="cap">${I.cap.toLocaleString('ja-JP')}席</span></span></button>`;
   const rails = Array.from({ length: 26 }, (_, i) => { const xx = i * 15; const y = 286 - xx * 0.021; return `<path class="rail" d="M${xx} ${y - 5} L ${xx + 1} ${y + 5}"/>`; }).join('');
-  const board = `<div class="ht-board">
-    <svg class="map" viewBox="0 0 361 432" preserveAspectRatio="none" aria-hidden="true">
+  const tall = htMode() === 1, H = tall ? 622 : 432;
+  const ext1 = tall ? `<rect class="zone" x="8" y="446" width="345" height="166" rx="10"/><path class="ch thin" d="M95 400 L 93 446"/><path class="ch thin" d="M258 400 L 256 446"/><path class="ch" d="M-5 424 C 60 418, 120 430, 180 424 S 300 418, 370 426"/>` : '';
+  const board = `<div class="ht-board${tall ? ' tall' : ''}" style="height:${H}px">
+    <svg class="map" viewBox="0 0 361 ${H}" preserveAspectRatio="none" aria-hidden="true">
       <defs><filter id="ht-chalk"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter></defs>
       <g filter="url(#ht-chalk)">
         <rect class="zone" x="8" y="12" width="345" height="94" rx="10"/>
         <path class="ch" d="M-5 122 C 40 106, 80 134, 130 118 S 210 102, 250 116 S 320 130, 370 110"/>
         <path class="ch" d="M-5 133 C 40 117, 80 145, 130 129 S 210 113, 250 127 S 320 141, 370 121"/>
         <path class="rail" d="M-5 283 L 370 275"/><path class="rail" d="M-5 289 L 370 281"/>${rails}
-        <path class="ch thin" d="M95 400 L 102 300 L 92 140"/><path class="ch thin" d="M361 240 L 270 240 L 250 300"/><path class="ch thin" d="M258 400 L 262 300"/>
+        <path class="ch thin" d="M95 400 L 102 300 L 92 140"/><path class="ch thin" d="M361 240 L 270 240 L 250 300"/><path class="ch thin" d="M258 400 L 262 300"/>${ext1}
       </g>
     </svg>
-    <span class="ht-lab" style="left:${x(18)};top:18px">クラブの施設</span><span class="ht-lab" style="right:${x(22)};top:140px">川</span><span class="ht-lab" style="right:${x(14)};top:292px">駅 →</span>
-    ${stad}${expTok}${facs}${blds}
+    <span class="ht-lab" style="left:${x(18)};top:18px">クラブの施設</span><span class="ht-lab" style="right:${x(22)};top:140px">川</span>${tall ? `<span class="ht-lab" style="right:${x(14)};top:292px">駅</span><span class="ht-lab" style="left:${x(18)};top:452px">駅の向こう</span>` : `<button class="ht-lab ht-go" style="right:${x(10)};top:286px" data-act="htEast" data-k="east">駅の向こう →</button>`}
+    ${stad}${expTok}${facs}${blds}${tall ? east(HT_POS1) + (shut ? `<div class="ht-shutw" style="top:566px">${shut}</div>` : '') : ''}
   </div>`;
+  // 案2: the second board (the line from the stadium at the top, the new station on it, the street down to the school)
+  const ties = Array.from({ length: 26 }, (_, i) => { const xx = i * 15; const y = 84 - xx * 0.021; return `<path class="rail" d="M${xx} ${y - 5} L ${xx + 1} ${y + 5}"/>`; }).join('');
+  const board2 = `<div class="ht-board ht-east${I.east.open ? '' : ' shut'}">
+    <svg class="map" viewBox="0 0 361 432" preserveAspectRatio="none" aria-hidden="true">
+      <g filter="url(#ht-chalk2)">
+        <path class="rail" d="M-5 81 L 370 73"/><path class="rail" d="M-5 87 L 370 79"/>${ties}
+        <rect class="ch thin" x="130" y="96" width="100" height="10" rx="2"/>
+        <path class="ch" d="M172 106 L 170 432"/><path class="ch" d="M190 106 L 192 432"/>
+        <path class="ch thin" d="M0 296 L 170 296"/><path class="ch thin" d="M192 290 L 361 290"/>
+        <rect class="ch thin" x="212" y="320" width="104" height="64" rx="2"/><path class="ch thin" d="M264 320 V 384"/><circle class="ch thin" cx="264" cy="352" r="10"/>
+        <circle class="ch thin" cx="44" cy="350" r="11"/><circle class="ch thin" cx="70" cy="372" r="9"/><circle class="ch thin" cx="96" cy="346" r="12"/><path class="ch thin" d="M44 361 v8 M70 381 v7 M96 358 v9"/>
+      </g>
+      <defs><filter id="ht-chalk2"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter></defs>
+    </svg>
+    <button class="ht-lab ht-go" style="left:${x(8)};top:30px" data-act="htEast" data-k="">← スタジアム</button>
+    <span class="ht-lab" style="left:${x(198)};top:150px;writing-mode:vertical-rl">駅前通り</span><span class="ht-lab" style="left:${x(26)};top:396px">公園</span><span class="ht-lab" style="left:${x(110)};top:276px">商店街</span>
+    ${east(HT_POS2)}${shut ? `<div class="ht-shutw" style="top:150px">${shut}</div>` : ''}
+  </div>`;
+  const two = htMode() === 2, onE = two && UI.htE;
+  const sw = two ? `<div class="seg ht-sw"><button data-act="htEast" data-k="" aria-pressed="${!onE}">スタジアムのまわり</button><button data-act="htEast" data-k="east" aria-pressed="${!!onE}">駅の向こう${I.east.open ? ` ${I.east.n}/${E.TOWN_EAST.length}` : ''}</button></div>` : '';
   const jobCard = job ? `<section class="card ht-job">
       <div class="row"><div class="eyebrow">工事中</div><span class="spacer"></span><span class="chip acc">あと${job.left}日</span></div>
       <div class="ht-job-t"><b>${htJobName(job)}</b>${job.k === 'exp' ? `<span class="small muted">+${E.TOWN.b.exp.seats.toLocaleString('ja-JP')}席 → ${(I.cap + E.TOWN.b.exp.seats).toLocaleString('ja-JP')}席</span>` : ''}</div>
@@ -1303,15 +1351,15 @@ function viewTown() {
         <div><small>スタジアム</small><b>${ppl(I.cap)}<span>席</span></b><i>${I.att != null ? `平均 ${ppl(I.att)}人・${Math.round(I.full * 100)}%` : esc(c.stadium || '')}</i></div>
       </div>
       <p class="ht-note">${note}</p></section>
-    ${board}${jobCard}${chart}${money}`;
+    ${sw}${onE ? board2 : board}${jobCard}${chart}${money}`;
 }
 // クラブ → 経営: the facilities and the buildings, in one line, and the way to ホームタウン
 function townLink() {
   const c = S.clubs[S.my], I = E.townInfo(S), j = I.job;
-  const nb = I.b.filter(b => b.k !== 'exp' && b.built).length;
+  const nb = E.TOWN.west.filter(k => E.built(c, k)).length;
   return `<section class="card ht-link"><div class="row" style="gap:12px"><span class="ht-mag built sm">${htIc('exp')}</span><div style="flex:1;min-width:0"><b>ホームタウン</b>
     <div class="small muted">${HT_FAC.map(k => `${E.FACILITY[k].jp} Lv${c.fac[k]}`).join('・')}</div>
-    <div class="small muted">収容 ${c.cap.toLocaleString('ja-JP')}席・建物 ${nb}/7${j ? `・工事中 ${htJobName(j)} ${htPct(j)}%` : ''}</div></div></div>
+    <div class="small muted">収容 ${c.cap.toLocaleString('ja-JP')}席・建物 ${nb}/${E.TOWN.west.length}${I.east.open ? `・駅の向こう ${I.east.n}/${E.TOWN_EAST.length}` : ''}${j ? `・工事中 ${htJobName(j)} ${htPct(j)}%` : ''}</div></div></div>
     <button class="btn block" data-act="clView" data-k="town">施設の強化・建物はホームタウンへ</button></section>`;
 }
 // a magnet: build it (cost, months, upkeep, effects), or a facility to upgrade
@@ -1319,12 +1367,21 @@ function sheetTown(k) {
   sheetState = { type: 'town', k };
   const c = S.clubs[S.my], close = '<button class="btn ghost block" data-act="closeSheet">閉じる</button>';
   if (HT_FAC.includes(k)) {
-    const F = E.FACILITY[k], lv = c.fac[k], cost = E.facCost(lv), u = E.TOWN.facUp[k], st = E.TOWN.facStart[k];
-    const btn = lv >= 5 ? '' : c.funds < cost ? `<button class="btn primary block" disabled>資金が足りません（${E.money(cost)}）</button>` : `<button class="btn primary block" data-act="htUp" data-k="${k}" style="min-height:52px">Lv${lv + 1}に強化する（${E.money(cost)}）</button>`;
-    openSheet(`<div class="ht-sh-head"><span class="ht-mag fac lg">${htIc(k)}<em>Lv${lv}</em></span><div class="t"><div class="eyebrow">クラブの施設</div><b class="t2">${esc(F.jp)}</b><span class="stars">${'■'.repeat(lv)}${'□'.repeat(5 - lv)}</span></div></div>
-      ${lv < 5 ? `<div class="ht-kv"><div><small>Lv${lv + 1}への費用</small><b>${E.money(cost).replace('円', '')}</b></div><div><small>工期</small><b>すぐ</b></div><div><small>維持費</small><b>月+${u}万</b></div></div>` : '<div class="row"><span class="chip ok">最大レベル</span></div>'}
-      <p class="small" style="margin:0">${esc(F.desc)}。</p>
-      <p class="fine" style="margin:0">維持費は Lv${st}より上のLv1つにつき月${u}万円（いまは月${Math.max(0, lv - st) * u}万円）。${k === 'train' ? '練習方針と選手ごとのトレーニングは「選手 → 育成」で設定します。' : k === 'scout' ? 'スカウトの派遣は「クラブ → 経営」から。' : ''}</p>`,
+    const F = E.FACILITY[k], lv = c.fac[k], max = E.FAC_MAX, top = lv >= max, cost = top ? 0 : E.facCost(lv), u = E.TOWN.facUp[k], st = E.TOWN.facStart[k];
+    const btn = top ? '' : c.funds < cost ? `<button class="btn primary block" disabled>資金が足りません（${E.money(cost)}）</button>` : `<button class="btn primary block" data-act="htUp" data-k="${k}" style="min-height:52px">Lv${lv + 1}に強化する（${E.money(cost)}）</button>`;
+    // the level as 10 pips (6〜10 in yellow), and what it does now → at the next level
+    const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lv ? 'on' : ''}${i >= 5 ? ' hi' : ''}"></i>`).join('');
+    const a = E.facFx(k, lv), b = top ? null : E.facFx(k, lv + 1), f2 = v => v.toFixed(2), f1 = v => v.toFixed(1), pc = v => `${Math.round(v * 100)}%`;
+    const rows = { train: [['成長のスピード', x => `×${f2(x.grow)}`]],
+      youth: [['毎年の昇格', x => `${x.n}人`], ['逸材が来る確率', x => pc(x.gem)], ['昇格する選手の総合力', x => `+${f1(x.ovr - 1.6)}`], ['昇格する選手の伸びしろ', x => `+${f1(x.pot - 2.4)}`]],
+      medical: [['ケガ', x => `×${f2(x.inj / 1.03)}`], ['コンディションの戻り', x => `+${f1(x.rec - 1.2)}/日`]],
+      scout: [['見つける若手の伸びしろ', x => `+${Math.round(x.pot)}`]] }[k];
+    const fx = `<table class="ht-lvfx"><thead><tr><th></th><th>いま Lv${lv}</th>${b ? `<th>Lv${lv + 1}</th>` : ''}</tr></thead><tbody>${rows.map(([t, g]) => `<tr><th>${t}</th><td>${g(a)}</td>${b ? `<td class="${g(b) !== g(a) ? 'up' : ''}">${g(b)}</td>` : ''}</tr>`).join('')}</tbody></table>`;
+    openSheet(`<div class="ht-sh-head"><span class="ht-mag fac${lv > 5 ? ' hi' : ''} lg">${htIc(k)}<em>Lv${lv}</em></span><div class="t"><div class="eyebrow">クラブの施設</div><b class="t2">${esc(F.jp)}</b><span class="ht-pips" aria-label="Lv${lv}（最大${max}）">${pips}</span></div></div>
+      ${top ? '<div class="row"><span class="chip ok">最大レベル</span></div>' : `<div class="ht-kv"><div><small>Lv${lv + 1}への費用</small><b>${E.money(cost).replace('円', '')}</b></div><div><small>工期</small><b>すぐ</b></div><div><small>維持費</small><b>月+${u}万</b></div></div>`}
+      ${fx}
+      <p class="small" style="margin:0">${esc(F.desc)}。${lv >= 5 ? 'Lv6からは費用が大きく、1つ上げたときの効き目は控えめです。' : ''}</p>
+      <p class="fine" style="margin:0">数字はほかのクラブの標準（${k === 'scout' ? 'Lv1' : 'Lv2'}）とくらべたもの。維持費は Lv${st}より上のLv1つにつき月${u}万円（いまは月${Math.max(0, lv - st) * u}万円）。${k === 'train' ? '練習方針と選手ごとのトレーニングは「選手 → 育成」で設定します。' : k === 'scout' ? 'スカウトの派遣は「クラブ → 経営」から。' : ''}</p>`,
       btn + close);
     return;
   }
@@ -1333,7 +1390,7 @@ function sheetTown(k) {
   const step = mine ? job.step : nx ? nx.step : T.exp;
   const title = k === 'exp' ? `スタジアム増築${step ? ` ${step}期` : ''}` : B.jp;
   const st = mine ? 'job' : done ? 'built' : 'empty';
-  const eb = mine ? '工事中' : done ? `完成（${jd(T.b[k])}）` : k === 'exp' && !nx ? 'スタジアム' : '建てる';
+  const eb = mine ? '工事中' : done ? `完成（${jd(T.b[k])}）` : k === 'exp' && !nx ? 'スタジアム' : B.east ? '駅の向こう' : '建てる';
   let kv;
   if (mine) kv = `<div><small>完成予定</small><b>${jd(job.to)}</b></div><div><small>進み具合</small><b>${htPct(job)}%</b></div><div><small>維持費</small><b>月${B.up}万</b></div>`;
   else if (done) kv = `<div><small>完成</small><b>${jd(T.b[k])}</b></div><div><small>維持費</small><b>月${B.up}万</b></div><div><small>効果</small><b>発揮中</b></div>`;
@@ -1345,6 +1402,7 @@ function sheetTown(k) {
     const can = E.townCan(S, k);
     const fin = E.addMonths(S.date, nx.mo);
     foot = can.ok ? `<button class="btn primary block" data-act="htBuild" data-k="${k}" style="min-height:54px;font-size:16px">建てる（${E.money(nx.cost)}・${jd(fin)}完成）</button>`
+      : can.locked ? `<button class="btn primary block" disabled>${htIc('lock')} 建物を${E.TOWN.west.length}つ建てると開きます（あと${E.TOWN.west.length - I.east.west}つ）</button>`
       : can.busy ? `<button class="btn primary block" disabled>${jd(job.to)} の完成後に建てられます</button>`
       : `<button class="btn primary block" disabled>資金が足りません（あと${E.money(nx.cost - c.funds)}）</button>`;
   }
@@ -3051,7 +3109,8 @@ const ACT = {
   htOpen(d) { sheetTown(d.k); },
   htBuild(d) { const r = E.townBuild(S, d.k); toast(r.msg); if (r.ok) { persist(true); closeSheet(); render(); } else refreshSheet(); },
   htUp(d) { const r = E.upgrade(S, d.k); toast(r.msg); if (r.ok) persist(true); refreshSheet(); render(); },
-  htGo() { closeSheet(); UI.tab = 'club'; UI.cl.view = 'town'; render(); window.scrollTo(0, 0); },
+  htGo(d) { closeSheet(); UI.tab = 'club'; UI.cl.view = 'town'; UI.htE = !!(d && d.k && E.TOWN.b[d.k] && E.TOWN.b[d.k].east); render(); window.scrollTo(0, 0); },
+  htEast(d) { UI.htE = !!d.k; render(); },
   training(d) { S.training = d.k; persist(false); render(); },
   toggleList(d) { const p = S.players[d.id]; const r = E.setListed(S, p.id, !p.listed); if (!r.ok) return; persist(false); toast(p.listed ? `${r.wasKeep ? '放出不可を解除し、' : ''}${E.inWindow(S.date) ? '放出リストに載せました。オファーを待ちます' : '放出リストに載せました。移籍期間に入るとオファーが届きます'}` : '放出リストから外しました'); refreshSheet(); render(); },
   toggleKeep(d) { const p = S.players[d.id]; const r = E.setKeep(S, p.id, !p.keep); if (!r.ok) return; persist(false); toast(p.keep ? `${r.wasListed ? '放出リストから外し、' : ''}放出不可にしました。他クラブのオファーは断ります${r.n ? '（届いていたオファーも断りました）' : ''}` : '放出不可を解除しました'); refreshSheet(); render(); },

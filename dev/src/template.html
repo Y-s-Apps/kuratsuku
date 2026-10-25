@@ -1013,7 +1013,7 @@ html.ios-app { min-height: calc(var(--apph) + 1px); }
 .ht-mag.built { background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 48%), #F2EFE4; color: #1F2A24; box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 10px rgba(0,0,0,.25); border: 3px solid #F2D500; }
 .ht-mag.fac { background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 48%), #2F6FD6; color: #fff; box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 10px rgba(0,0,0,.25); width: 40px; height: 40px; }
 .ht-mag.fac em { position: absolute; right: -12px; top: -6px; font: 700 10px/16px var(--f-body); font-style: normal; background: #F2EFE4; color: #1F2A24; border-radius: 8px; padding: 0 5px; box-shadow: 0 1px 0 rgba(0,0,0,.3); }
-.ht-mag.empty { border: 2px dashed var(--pitch-line); color: var(--pitch-ink); width: 40px; height: 40px; opacity: .75; }
+.ht-mag.empty { border: 2px dashed var(--pitch-line); color: var(--pitch-ink); width: 40px; height: 40px; padding: 0; opacity: .75; }   /* padding: the generic .empty gave it 24px (an oval, 40×52, until 2026-10-25) */
 .ht-mag.empty .ht-ic { width: 19px; height: 19px; }
 .ht-mag.job { background: repeating-linear-gradient(135deg, #F2C230 0 7px, #2b2410 7px 12px); color: #1F1A08; box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 10px rgba(0,0,0,.25); }
 .ht-mag.job::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #F2C230; }
@@ -1049,6 +1049,19 @@ html.ios-app { min-height: calc(var(--apph) + 1px); }
 .ht-leg i.g, .ht-leg i.f { width: 7px; height: 10px; border: 0; border-radius: 1px; background: color-mix(in srgb, var(--ink) 32%, transparent); } .ht-leg i.f { background: var(--accent-bg); }
 .ht-leg i.c { border-top: 1.5px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
 .ht-link { display: grid; gap: 10px; }
+/* 施設 Lv6〜10 and 駅の向こう (2026-10-25) */
+.ht-mag.fac.hi { box-shadow: 0 0 0 3px #F2D500, 0 3px 0 3px rgba(0,0,0,.35), 0 6px 12px rgba(0,0,0,.3); }
+.ht-mag.fac.hi em { background: #F2D500; }
+.ht-pips { display: flex; gap: 3px; margin-top: 2px; } .ht-pips i { width: 14px; height: 8px; border-radius: 2px; background: color-mix(in srgb, var(--ink) 14%, transparent); }
+.ht-pips i.on { background: #2F6FD6; } .ht-pips i.on.hi { background: var(--accent-bg); } .ht-pips i:nth-child(6) { margin-left: 4px; }
+.ht-lvfx { width: 100%; border-collapse: collapse; font-size: 13px; } .ht-lvfx th, .ht-lvfx td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ht-lvfx th:first-child { text-align: left; font-weight: 700; white-space: normal; } .ht-lvfx thead th { font-size: 11px; color: var(--muted); font-weight: 700; border-bottom-width: 2px; }
+.ht-lvfx td { font-family: var(--f-display); font-size: 15px; } .ht-lvfx td.up { color: var(--accent); }
+.ht-sw { margin: 0 0 -4px; } .ht-sw button { font-size: 13px; }
+.ht-go { pointer-events: auto; border: 0; background: rgba(0,0,0,.28); border-radius: 6px; padding: 2px 7px; color: var(--pitch-ink); opacity: 1; font-size: 12px; z-index: 3; }
+.ht-tok.shut { opacity: .55; } .ht-tok.shut .pr { color: var(--pitch-ink); }
+.ht-shutw { position: absolute; left: 8%; right: 8%; display: grid; place-items: center; z-index: 3; pointer-events: none; }
+.ht-shut { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-chalk); font-size: 12px; line-height: 1.4; color: #1F1A08; background: #F2D500; border-radius: 8px; padding: 5px 10px; box-shadow: 0 2px 0 rgba(0,0,0,.3); text-align: left; } .ht-shut .ht-ic { width: 16px; height: 16px; }
 .ht-sh-head { display: flex; align-items: center; gap: 18px; } .ht-sh-head .ht-mag.fac em { right: -10px; top: -5px; } .ht-sh-head .t { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .ht-sh-head b.t2 { font-family: var(--f-display); font-weight: 400; font-size: 20px; line-height: 1.25; }
 .ht-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }

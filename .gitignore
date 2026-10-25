@@ -21,3 +21,6 @@ dev/test/mock_camp/page.html
 dev/test/mock_afc/out/
 dev/test/mock_afc/save-*.json
 dev/test/mock_afc/page.html
+dev/test/mock_east/out/
+dev/test/mock_east/save.json
+dev/test/mock_east/page.html
