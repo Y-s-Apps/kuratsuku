@@ -1,7 +1,7 @@
 # 国際大会 in the browser (2026-10-25): the home card in a qualifying window (Japan's group table), during the World Cup 2030
 # (Japan's matches, my players at the tournament, the summer's tournaments), the player sheet's 称号, the records, the
-# pre-match line of 大舞台の経験. Both looks for the choice (案A chips and a list, 案B medal magnets and Japan's road:
-# localStorage 'kuratsuku.ttv'). iPhone 16 chalkboard, iPhone SE whiteboard.
+# pre-match line of 大舞台の経験. The look the user chose (案B: Japan's road on the card and the road of the qualifiers,
+# with the 称号 of 案A as chips). iPhone 16 chalkboard, iPhone SE whiteboard.
 # usage: python3 dev/test/wc.py   (KTK_FONTS=<node_modules/@fontsource> for the real fonts) → dev/test/shots/wc-*.png
 import asyncio, pathlib, os, re, json, subprocess
 from playwright.async_api import async_playwright
@@ -69,9 +69,9 @@ async def main(vw, vh, board):
                 await r.fulfill(status=200, content_type='font/woff2', body=(FONTS/fam/'files'/fn).read_bytes())
             else: await r.abort()
         await page.route('https://**/*', route)
-        async def load(st, v):
+        async def load(st):
             await page.goto('file://' + str(ROOT/'test/page.html')); await page.wait_for_timeout(250)
-            await page.evaluate("([b, v]) => { localStorage.setItem('kuratsuku.board', b); localStorage.setItem('kuratsuku.ttv', v); }", [board, v])
+            await page.evaluate("b => localStorage.setItem('kuratsuku.board', b)", board)
             await page.evaluate("s => localStorage.setItem('touchline.j1.save', 'lz:' + LZString.compressToBase64(s))", json.dumps(st))
             await page.reload(); await page.wait_for_timeout(400); await page.click('[data-act="continue"]'); await page.wait_for_timeout(500)
             if css: await page.evaluate('document.fonts.ready')
@@ -82,28 +82,30 @@ async def main(vw, vh, board):
         async def wide(what):
             o = await page.evaluate("() => [...document.querySelectorAll('.card, .sheet-body > *, .tt-row, .wq-tab')].filter(e => e.getBoundingClientRect().right > innerWidth + 1).length")
             ok(o == 0, f'{what}: nothing runs off the screen ({o})')
-        for v in ('A', 'B'):
-            # the 最終予選
-            await load(SAVES['wq'], v); t = await page.locator('#view').inner_text()
-            ok('W杯アジア最終予選' in t and '日本' in t, f'{v}: the qualifying window card')
-            ok(await page.locator('.wq-tab tr').count() == 6, f'{v}: Japan\'s group of six')
-            await to_card('W杯'); await page.evaluate("() => { const t = document.querySelector('.wq-tab'); if (t) t.scrollIntoView({block: 'center'}); }"); await page.wait_for_timeout(200)
-            await wide(f'{v} qualifiers'); await page.screenshot(path=str(OUT/f'wc-wq-{v}-{tag}.png'))
-            # the World Cup under way
-            await load(SAVES['wc'], v); t = await page.locator('#view').inner_text()
-            ok('W杯2030' in t and 'この夏の国際大会' in t, f'{v}: the World Cup card')
-            if v == 'B': ok(await page.locator('.road-card .road li').count() == 7, 'B: Japan\'s road (7 steps)')
-            await to_card('W杯2030'); await wide(f'{v} world cup'); await page.screenshot(path=str(OUT/f'wc-card-{v}-{tag}.png'))
-            # after it: the player sheet's 称号
-            await load(SAVES['after'], v)
-            await page.click('[data-tab="squad"]'); await page.wait_for_timeout(300)
-            await page.evaluate("id => { const b = document.querySelector(`[data-id=\"${id}\"]`); if (b) b.click(); }", str(DATA['mine'])); await page.wait_for_timeout(450)
-            st = await page.locator('#sheet').inner_text()
-            ok('称号' in st and 'W杯2030' in (st if v == 'A' else st + 'W杯2030'), f'{v}: the player sheet shows the 称号')
-            await page.evaluate("() => { const el = [...document.querySelectorAll('#sheet .eyebrow')].find(x => x.textContent === '称号'); if (el) el.scrollIntoView({block: 'center'}); }"); await page.wait_for_timeout(250)
-            await wide(f'{v} player sheet'); await page.screenshot(path=str(OUT/f'wc-player-{v}-{tag}.png'))
-        # the same in both: the records and the pre-match line
-        await load(SAVES['after'], 'A')
+        # the 最終予選: the road (2次予選 done, 最終予選 now) and Japan's group
+        await load(SAVES['wq']); t = await page.locator('#view').inner_text()
+        ok('W杯アジア最終予選' in t and '日本' in t, 'the qualifying window card')
+        ok(await page.locator('.wq-tab tr').count() == 6, "Japan's group of six")
+        ok(await page.locator('.card .road li').count() == 3 and await page.locator('.card .road li.done').count() == 1 and await page.locator('.card .road li.now').count() == 1, 'the qualifiers\' road: 2次予選 done, 最終予選 now')
+        await to_card('W杯'); await page.evaluate("() => { const t = document.querySelector('.wq-tab'); if (t) t.scrollIntoView({block: 'center'}); }"); await page.wait_for_timeout(200)
+        await wide('qualifiers'); await page.screenshot(path=str(OUT/f'wc-wq-{tag}.png'))
+        # the World Cup under way: Japan's road
+        await load(SAVES['wc']); t = await page.locator('#view').inner_text()
+        ok('W杯2030' in t and 'この夏の国際大会' in t, 'the World Cup card')
+        ok(await page.locator('.road-card .road li').count() == 7, "Japan's road (7 steps)")
+        ok(await page.locator('.road-card .road li.now, .road-card .road li.out, .road-card .road li.done').count() >= 1, 'the road shows where Japan is')
+        await to_card('W杯2030'); await wide('world cup'); await page.screenshot(path=str(OUT/f'wc-card-{tag}.png'))
+        # after it: the player sheet's 称号 as chips
+        await load(SAVES['after'])
+        await page.click('[data-tab="squad"]'); await page.wait_for_timeout(300)
+        await page.evaluate("id => { const b = document.querySelector(`[data-id=\"${id}\"]`); if (b) b.click(); }", str(DATA['mine'])); await page.wait_for_timeout(450)
+        st = await page.locator('#sheet').inner_text()
+        ok('称号' in st and 'W杯2030' in st, 'the player sheet shows the 称号')
+        ok(await page.locator('#sheet .chip.tt').count() >= 1 and await page.locator('#sheet .tt-medal').count() == 0, 'the 称号 are chips')
+        await page.evaluate("() => { const el = [...document.querySelectorAll('#sheet .eyebrow')].find(x => x.textContent === '称号'); if (el) el.scrollIntoView({block: 'center'}); }"); await page.wait_for_timeout(250)
+        await wide('player sheet'); await page.screenshot(path=str(OUT/f'wc-player-{tag}.png'))
+        # the records and the pre-match line
+        await load(SAVES['after'])
         await page.click('[data-tab="club"]'); await page.wait_for_timeout(300)
         await page.click('[data-act="clView"][data-k="records"]'); await page.wait_for_timeout(300)
         t = await page.locator('#view').inner_text()
@@ -111,7 +113,7 @@ async def main(vw, vh, board):
         await page.evaluate("() => { const el = [...document.querySelectorAll('.eyebrow')].find(x => x.textContent === '国際大会'); if (el) el.scrollIntoView({block: 'start'}); window.scrollBy(0, -64); }"); await page.wait_for_timeout(250)
         await page.screenshot(path=str(OUT/f'wc-records-{tag}.png'))
         if SAVES.get('pre'):
-            await load(SAVES['pre'], 'A')
+            await load(SAVES['pre'])
             await page.click('[data-act="go"]'); await page.wait_for_timeout(500)
             st = await page.locator('#sheet').inner_text()
             ok('大舞台の経験' in st, 'pre-match: 大舞台の経験')

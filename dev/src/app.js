@@ -797,9 +797,6 @@ function loanSection() {
    they are), Japan's matches (an Asian Cup or a summer tournament: the ones played and the next) and who from J1 is in
    the Japan squad. 2026-10-25: the summer tournaments (W杯・EURO…), Japan's W杯 qualifiers with the group table. */
 const ym = d => d ? `${E.D.y(d)}年${E.D.m(d)}月` : '';
-// (確認用: the two looks of 2026-10-25, 案A chips and a list / 案B medal magnets and Japan's road; one goes after the choice)
-const TTV = () => { try { return localStorage.getItem('kuratsuku.ttv') || 'A'; } catch (e) { return 'A'; } };
-const TT_SHORT = { wc: 'W杯', ac: 'アジア', euro: 'EURO', copa: 'コパ', afcon: 'アフリカ', gold: 'GC' };
 // how far a nation has got in a tournament from the matches played so far (the next match shows once the last is played)
 const STEP_OF = g => /^グループ/.test(g.stage) ? 0 : { 'ラウンド32': 1, 'ラウンド16': 2, '準々決勝': 3, '準決勝': 4, '決勝': 5 }[g.stage];
 function tourNow(C, t, cc) {
@@ -816,7 +813,7 @@ function ntCard() {
   const now = E.ntNow(S); if (!now || !now.cur) return '';
   const C = now.ev, log = (S.nt && S.nt.log) || [];
   for (const it of S.inbox) if (it.type === 'nt' && it.k === C.k) it.seen = true;
-  const ac = C.kind === 'ac', sum = C.kind === 'sum', T = C.tours || [], v = TTV();
+  const ac = C.kind === 'ac', sum = C.kind === 'sum', T = C.tours || [];
   const tourFor = cc => T.find(t => C.games.some(g => g.cc === cc && g.tour === t.key)) || null;
   const jpT = tourFor('JPN');
   const mine = [];
@@ -858,13 +855,13 @@ function ntCard() {
   const tours = sum ? `<div><div class="eyebrow" style="margin-bottom:6px">この夏の国際大会</div><ul class="tour-list">${T.map(t => {
     const o = E.tourOf(t.key); const s = t.done ? `優勝 <b>${esc(E.natJp(t.champ))}</b>` : S.date < o.from ? `${jd(o.from)}開幕` : `開催中（〜${jd(o.to)}）`;
     return `<li><span>${esc(t.name)}${o.est ? '<small class="muted">（日程は推定）</small>' : ''}</span><span>${s}</span></li>`; }).join('')}</ul></div>` : '';
-  // 案B: Japan's road through the tournament
+  // Japan's road through the tournament (the chalk road of ACL の「アジアへの道」)
   let road = '';
-  if (jpT && v === 'B') {
+  if (jpT) {
     const tn = tourNow(C, jpT, 'JPN'), cls = i => i < tn.cur || (tn.champ && i === tn.cur) ? 'done' : i === tn.cur ? (tn.out ? 'out' : 'now') : '';
     road = `<div class="road-card"><b class="road-st">${tn.champ ? `${esc(jpT.name)} 優勝` : tn.out ? `${esc(jpT.name)} ${tn.cur ? tn.steps[tn.cur] + 'で敗退' : 'グループリーグで敗退'}` : `${esc(jpT.name)} ${tn.steps[tn.cur]}${tn.next ? `（${jd(tn.next.d)}）` : ''}`}</b><ol class="road">${tn.steps.map((n, i) => `<li class="${cls(i)}"><i></i><span>${n}</span></li>`).join('')}</ol></div>`;
   }
-  const wq = wqBlock(C, v);
+  const wq = wqBlock(C);
   const title = ac ? `アジアカップ${C.ac.y}` : jpT ? jpT.name : sum ? '夏の国際大会' : wq ? '代表ウィーク・W杯予選' : '代表ウィーク';
   return `<section class="card" style="display:grid;gap:10px">
     <div class="row"><div class="eyebrow">${title}</div><span class="spacer"></span><span class="small muted">${jd(jpT ? E.tourOf(jpT.key).from : st)}〜${jd(jpT ? E.tourOf(jpT.key).to : C.to)}</span></div>
@@ -876,25 +873,21 @@ function ntCard() {
     <p class="fine" style="margin:0">日本代表 ${jIn.length}人のうち、Jリーグから${j1.length}人：${j1.map(p => `${nm(p)}${C.kat.includes(p.id) ? '※活躍枠' : rep[p.id] ? '※追加招集' : ''}`).join('、') || 'なし'}。${gone}${note}</p>
   </section>`;
 }
-// Japan's World Cup qualifying group (the window's matches are qualifiers): the table; 案B also the road to the finals
-function wqBlock(C, v) {
+// Japan's World Cup qualifying group (the window's matches are qualifiers): the road to the finals and the table
+function wqBlock(C) {
   const g = C.games.find(x => x.cc === 'JPN' && x.wq); if (!g) return '';
   const W = ((S.nt || {}).wq || {})[g.wq.Y]; if (!W || !W.tab) return '';
   const rd = W.r, tab = W.tab, order = Object.keys(tab).sort((a, b) => tab[b].p - tab[a].p || tab[b].gd - tab[a].gd || tab[b].gf - tab[a].gf);
   const mark = i => rd === 3 ? (i < 2 ? 'wq-go' : i < 4 ? 'wq-po' : '') : rd === 2 ? (i < 2 ? 'wq-go' : '') : rd === 4 ? (i < 1 ? 'wq-go' : i < 2 ? 'wq-po' : '') : '';
   const table = rd <= 4 ? `<table class="wq-tab"><tbody>${order.map((cc, i) => `<tr class="${cc === 'JPN' ? 'wq-me ' : ''}${mark(i)}"><td>${i + 1}</td><td class="nm">${esc(E.natJp(cc))}</td><td>${tab[cc].pl}試合</td><td>勝点${tab[cc].p}</td><td>${tab[cc].gd > 0 ? '+' : ''}${tab[cc].gd}</td></tr>`).join('')}</tbody></table>` : '';
   const how = rd === 2 ? '上位2か国が最終予選へ' : rd === 3 ? `上位2か国がW杯${W.Y}へ。3・4位は4次予選へ` : rd === 4 ? `1位がW杯${W.Y}へ。2位は5次予選へ` : rd === 5 ? '2試合の合計で勝つと大陸間プレーオフへ' : `勝つとW杯${W.Y}へ`;
-  let road = '';
-  if (v === 'B') {
-    const st = ['2次予選', '最終予選', '本大会'], cur = rd === 2 ? 0 : rd >= 3 && rd <= 6 ? 1 : 2;
-    road = `<ol class="road">${st.map((n, i) => `<li class="${i < cur ? 'done' : i === cur ? 'now' : ''}"><i></i><span>${n}</span></li>`).join('')}</ol>`;
-  }
+  const st = ['2次予選', '最終予選', '本大会'], cur = rd === 2 ? 0 : rd >= 3 && rd <= 6 ? 1 : 2;
+  const road = `<ol class="road">${st.map((n, i) => `<li class="${i < cur ? 'done' : i === cur ? 'now' : ''}"><i></i><span>${n}</span></li>`).join('')}</ol>`;
   return `<div><div class="eyebrow" style="margin-bottom:6px">${esc(E.WQ_ST[rd])}${rd <= 4 ? '（日本のグループ）' : ''}</div>${road}${table}<p class="fine" style="margin:6px 0 0">${how}。</p></div>`;
 }
-// 称号 of a player (2026-10-25): 案A chips / 案B medal magnets, newest first
-function ttView(p, v) {
+// 称号 of a player (2026-10-25): chips, newest first (gold・silver・bronze for the top three)
+function ttView(p) {
   const tt = E.ttOf(p).slice().sort((a, b) => b.y - a.y || E.STAGES.indexOf(b.st) - E.STAGES.indexOf(a.st)); if (!tt.length) return '';
-  if ((v || TTV()) === 'B') return `<div class="tt-row">${tt.map(t => `<div class="tt-medal ${t.st === 'w' ? 'w' : t.st === 'f' ? 'f' : t.st === 'sf' ? 'sf' : t.t === 'wc' && t.st === 'qf' ? 'qf' : ''}"><div class="md">${esc(TT_SHORT[t.t] || t.t)}<small>${t.y}</small>${t.gb ? '<i class="gb">得点王</i>' : ''}</div><b>${t.st === 'gs' ? '出場' : E.STAGE_JP[t.st]}</b><span>${t.n == null ? '' : t.n ? `${t.n}試合${t.g ? t.g + '点' : ''}` : '出場なし'}</span></div>`).join('')}</div>`;
   return `<div class="row wrap" style="gap:4px">${tt.map(t => `<span class="chip tt ${t.st === 'w' ? 'gold' : t.st === 'f' ? 'silver' : t.st === 'sf' ? 'bronze' : ''}">${esc(E.ttLabel(t))}${t.gb ? '・得点王' : ''}${t.n ? `（${t.n}試合${t.g ? t.g + '点' : ''}）` : ''}</span>`).join('')}</div>`;
 }
 // the toast when the day stops for the national team: named, 不参加 or 追加招集 (2026-10-25)
