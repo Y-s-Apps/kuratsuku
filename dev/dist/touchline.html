@@ -1013,7 +1013,7 @@ html.ios-app { min-height: calc(var(--apph) + 1px); }
 .ht-mag.built { background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.55) 0%, rgba(255,255,255,0) 48%), #F2EFE4; color: #1F2A24; box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 10px rgba(0,0,0,.25); border: 3px solid #F2D500; }
 .ht-mag.fac { background: radial-gradient(circle at 34% 28%, rgba(255,255,255,.4) 0%, rgba(255,255,255,0) 48%), #2F6FD6; color: #fff; box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 10px rgba(0,0,0,.25); width: 40px; height: 40px; }
 .ht-mag.fac em { position: absolute; right: -12px; top: -6px; font: 700 10px/16px var(--f-body); font-style: normal; background: #F2EFE4; color: #1F2A24; border-radius: 8px; padding: 0 5px; box-shadow: 0 1px 0 rgba(0,0,0,.3); }
-.ht-mag.empty { border: 2px dashed var(--pitch-line); color: var(--pitch-ink); width: 40px; height: 40px; opacity: .75; }
+.ht-mag.empty { border: 2px dashed var(--pitch-line); color: var(--pitch-ink); width: 40px; height: 40px; padding: 0; opacity: .75; }   /* padding: the generic .empty gave it 24px (an oval, 40×52, until 2026-10-25) */
 .ht-mag.empty .ht-ic { width: 19px; height: 19px; }
 .ht-mag.job { background: repeating-linear-gradient(135deg, #F2C230 0 7px, #2b2410 7px 12px); color: #1F1A08; box-shadow: 0 3px 0 rgba(0,0,0,.35), 0 6px 10px rgba(0,0,0,.25); }
 .ht-mag.job::before { content: ''; position: absolute; inset: 5px; border-radius: 50%; background: #F2C230; }
@@ -1049,6 +1049,19 @@ html.ios-app { min-height: calc(var(--apph) + 1px); }
 .ht-leg i.g, .ht-leg i.f { width: 7px; height: 10px; border: 0; border-radius: 1px; background: color-mix(in srgb, var(--ink) 32%, transparent); } .ht-leg i.f { background: var(--accent-bg); }
 .ht-leg i.c { border-top: 1.5px dashed color-mix(in srgb, var(--ink) 55%, transparent); }
 .ht-link { display: grid; gap: 10px; }
+/* 施設 Lv6〜10 and 駅の向こう (2026-10-25) */
+.ht-mag.fac.hi { box-shadow: 0 0 0 3px #F2D500, 0 3px 0 3px rgba(0,0,0,.35), 0 6px 12px rgba(0,0,0,.3); }
+.ht-mag.fac.hi em { background: #F2D500; }
+.ht-pips { display: flex; gap: 3px; margin-top: 2px; } .ht-pips i { width: 14px; height: 8px; border-radius: 2px; background: color-mix(in srgb, var(--ink) 14%, transparent); }
+.ht-pips i.on { background: #2F6FD6; } .ht-pips i.on.hi { background: var(--accent-bg); } .ht-pips i:nth-child(6) { margin-left: 4px; }
+.ht-lvfx { width: 100%; border-collapse: collapse; font-size: 13px; } .ht-lvfx th, .ht-lvfx td { padding: 5px 4px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.ht-lvfx th:first-child { text-align: left; font-weight: 700; white-space: normal; } .ht-lvfx thead th { font-size: 11px; color: var(--muted); font-weight: 700; border-bottom-width: 2px; }
+.ht-lvfx td { font-family: var(--f-display); font-size: 15px; } .ht-lvfx td.up { color: var(--accent); }
+.ht-sw { margin: 0 0 -4px; } .ht-sw button { font-size: 13px; }
+.ht-go { pointer-events: auto; border: 0; background: rgba(0,0,0,.28); border-radius: 6px; padding: 2px 7px; color: var(--pitch-ink); opacity: 1; font-size: 12px; z-index: 3; }
+.ht-tok.shut { opacity: .55; } .ht-tok.shut .pr { color: var(--pitch-ink); }
+.ht-shutw { position: absolute; left: 8%; right: 8%; display: grid; place-items: center; z-index: 3; pointer-events: none; }
+.ht-shut { display: inline-flex; align-items: center; gap: 6px; font-family: var(--f-chalk); font-size: 12px; line-height: 1.4; color: #1F1A08; background: #F2D500; border-radius: 8px; padding: 5px 10px; box-shadow: 0 2px 0 rgba(0,0,0,.3); text-align: left; } .ht-shut .ht-ic { width: 16px; height: 16px; }
 .ht-sh-head { display: flex; align-items: center; gap: 18px; } .ht-sh-head .ht-mag.fac em { right: -10px; top: -5px; } .ht-sh-head .t { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .ht-sh-head b.t2 { font-family: var(--f-display); font-weight: 400; font-size: 20px; line-height: 1.25; }
 .ht-kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -1863,7 +1876,7 @@ function devWeek(S, p, dry, opt) {
     const playing = sh == null ? 1 : ab ? GROW.abBase + sh * GROW.abPlay : rb ? rb.base + sh * rb.play : a <= 23 ? GROW.youngBase + sh * GROW.youngPlay : GROW.oldBase + sh * GROW.oldPlay;
     const tr = isMy ? TRAINING[S.training] || TRAINING.bal : TRAINING.bal;
     const trg = tr.young ? (a <= 23 ? tr.young : tr.rest) : tr.grow;
-    const fac = p.loan ? 2 : c.fac.train;  // on loan: an average J2 training ground
+    const fac = p.loan ? 2 : facEff(c.fac.train);  // on loan: an average J2 training ground
     // a big gap (a 16-year-old prodigy) closes over a few seasons rather than in one: the base rate is capped,
     // and playing time, the team menu and the intensity still multiply on top
     g = Math.min(gap * k / 4.33 * (1 + (fac - 2) * 0.12), rb ? rb.gMax : GROW.gMax) * playing * trg * it.g;
@@ -3209,9 +3222,9 @@ function comboText(S, it) {
 const BP_POOL = '東京90 大阪57 神奈川54 埼玉50 千葉40 愛知28 兵庫26 福岡22 茨城20 静岡17 広島16 群馬14 京都12 熊本12 新潟11 三重11 滋賀10 栃木9 北海道8 大分8 山口7 宮城6 長崎6 宮崎5 沖縄5 徳島5 岡山5 奈良4 佐賀4 鹿児島4 青森4 和歌山4 山梨4 愛媛3 富山3 岩手3 岐阜3 島根2 香川2 山形2 福島2 長野1 石川1 秋田1 福井1 鳥取1 高知1'
   .split(' ').map(s => [s.replace(/\d+$/, ''), +s.match(/\d+$/)[0]]);
 const BP_SUM = BP_POOL.reduce((a, b) => a + b[1], 0);
-function bpFor(id, area) {
+function bpFor(id, area, pct) {
   const h = hash('bp' + id);
-  if (area && h % 100 < 55) return area;
+  if (area && h % 100 < (pct || 55)) return area;
   let r = (h >>> 8) % BP_SUM;
   for (const [k, w] of BP_POOL) { if (r < w) return k; r -= w; }
   return '東京';
@@ -3345,7 +3358,7 @@ function stepMatch(S, M) {
       if (pl) { M.pm[pl.pid].rc = 1; M.pm[pl.pid].rr = rr; M.pm[pl.pid].rt -= 2; M.pm[pl.pid].so = M.min; sd.sent.push(pl.pid); push({ t: 'red', side: k, pid: pl.pid, text: `${pname(S, pl.pid)}に一発レッド！退場（${RED[rr].feed}）` }); }
     }
     // injury
-    const med = S.clubs[sd.cid].fac.medical;
+    const med = facEff(S.clubs[sd.cid].fac.medical);
     if (R() < 0.0021 * (1.15 - med * 0.06) * townInj(S.clubs[sd.cid])) {
       const pl = pick(onPitch(sd));
       if (pl && !M.pm[pl.pid].inj) {
@@ -3670,7 +3683,7 @@ function attPull(S, hid, aid) {
 function attendance(S, hid, aid) {
   const c = S.clubs[hid];
   const f = attPull(S, hid, aid) + R() * 0.12 - 0.06;
-  const att = clamp(fansOf(c) * f, 3000, c.cap * 0.97);
+  const att = clamp(fansOf(c) * f, 3000, c.cap * townFill(c));
   return Math.round(townWorks(c) ? Math.max(3000, att * TOWN.works) : att);   // a stand being built: fewer seats
 }
 const cupGateK = fx => cupDepth(fx) <= 1 ? 0.9 : cupDepth(fx) === 2 ? 0.75 : 0.55;
@@ -3680,7 +3693,7 @@ function attEst(S, fx) {
   if (fx.neutral) return { n: Math.round(NATIONAL.cap * 0.85), cap: NATIONAL.cap, full: false, works: false };
   const c = S.clubs[fx.h]; if (!c || !S.clubs[fx.a]) return null;
   if (c.afc) return { n: Math.round(c.cap * (cupDepth(fx) <= 2 ? 0.72 : 0.47) / 100) * 100, cap: c.cap, full: false, works: false };
-  let n = clamp(fansOf(c) * attPull(S, fx.h, fx.a), 3000, c.cap * 0.97);
+  let n = clamp(fansOf(c) * attPull(S, fx.h, fx.a), 3000, c.cap * townFill(c));
   if (townWorks(c)) n = Math.max(3000, n * TOWN.works);
   if (fx.cup) n *= isAfc(fx) ? (AFC.gate[fx.cup] || [])[fx.cr] || 0.5 : cupGateK(fx);
   return { n: Math.round(n / 100) * 100, cap: c.cap, full: n >= c.cap * (townWorks(c) ? TOWN.works : 1) * 0.95, works: townWorks(c) };
@@ -3749,7 +3762,7 @@ function nextDay(S) {
   // recovery
   for (const p of Object.values(S.players)) {
     const c = S.clubs[p.club]; if (!c) continue;
-    const med = c.fac.medical;
+    const med = facEff(c.fac.medical);
     const mine = p.club === S.my;
     const it = INTENS[mine ? (p.ti || 'norm') : 'norm'];
     if (p.hot && p.hot.d !== S.date) delete p.hot;
@@ -4227,6 +4240,7 @@ function rebornCheck(S, se) {
   if (!pool.length) return null;
   const titles = se ? (se.verdict === 'champion' ? 1 : 0) + ['ec', 'lc'].filter(k => se.cups && se.cups[k] && se.cups[k].champ === S.my).length : 0;
   let chance = REBORN.base + (se && (se.verdict === 'met' || se.verdict === 'champion') ? REBORN.met : 0) + titles * REBORN.title;
+  if (built(S.clubs[S.my], 'museum')) chance += TOWN.b.museum.reborn;   // クラブミュージアム
   if (st.wait >= REBORN.pity) chance = 1;
   if (R() >= chance) { st.wait++; return null; }
   st.wait = 0;
@@ -4394,7 +4408,7 @@ function genPlayer(S, cid, opts) {
   const p = { id: S.nextPid++, club: cid, pos, pp: o.pp || (pos === 'GK' ? 'GK' : genPP(pos)), num, name, short: foreign ? parts[1] : parts[0], birth, nat: foreign ? 'BRA' : 'JPN', ovr: ov, pot, cond: 100, form: 6.5, inj: 0, sus: 0, ycAcc: 0, listed: false, st: blankStats(), hist: [], joined: S.date, gen: true };
   if (o.sty && STYLE[o.sty]) p.sty = o.sty;
   if (o.cap && o.cap > GROW.potMax) p.cap = o.cap;
-  if (!foreign) p.bp = bpFor(p.id, o.local && S.clubs[cid] ? S.clubs[cid].area : null);   // 地元の星
+  if (!foreign) p.bp = bpFor(p.id, o.local && S.clubs[cid] ? S.clubs[cid].area : null, o.local && built(S.clubs[cid], 'school') ? TOWN.b.school.local : 0);   // 地元の星 (サッカースクール: more of them)
   initAttrs(p);
   S.players[p.id] = p;
   return p;
@@ -4408,11 +4422,25 @@ function ensureFreeAgents(S) {
 }
 
 /* ---------- facilities ---------- */
-function facCost(lvl) { return Math.round(4000 * Math.pow(lvl, 1.6) / 100) * 100; }
+/* Lv6〜10 (2026-10-25, the money a winning club piles up): each costs much more (FAC_HI: 6・10・15・22・30億, 83億 from Lv5
+   to Lv10) and counts FAC_K of a level below 5 (facEff: Lv10 = 6), so a full set barely moves the team (inflation.js); the ユース
+   sends up no more players than at Lv5 (4), only better ones. Other clubs stay at Lv1〜5. */
+const FAC_MAX = 10, FAC_HI = [60000, 100000, 150000, 220000, 300000], FAC_K = 0.2;
+function facCost(lvl) { return lvl >= 5 ? FAC_HI[lvl - 5] : Math.round(4000 * Math.pow(lvl, 1.6) / 100) * 100; }
+function facEff(lv) { lv = lv || 0; return Math.min(lv, 5) + Math.max(0, lv - 5) * FAC_K; }
+// what a facility does at a level (the sheet shows now → next): numbers as the engine uses them
+function facFx(k, lv) {
+  const e = facEff(lv);
+  if (k === 'train') return { grow: 1 + (e - 2) * 0.12 };
+  if (k === 'youth') return { n: 2 + Math.floor(Math.min(5, lv) / 2), gem: GEM.base + GEM.lv * e, ovr: e * INTAKE.lvO, pot: e * INTAKE.lvP };
+  if (k === 'medical') return { inj: 1.15 - e * 0.06, rec: e * 0.6 };
+  if (k === 'scout') return { pot: (e - 1) * 2 };
+  return {};
+}
 function upgrade(S, key) {
   if (!FACILITY[key]) return { ok: false, msg: 'この施設はありません' };
   const c = S.clubs[S.my]; const lv = c.fac[key];
-  if (lv >= 5) return { ok: false, msg: 'すでに最大レベルです' };
+  if (lv >= FAC_MAX) return { ok: false, msg: 'すでに最大レベルです' };
   const cost = facCost(lv);
   if (c.funds < cost) return { ok: false, msg: `資金が足りません（${money(cost)}）` };
   c.funds -= cost; c.fin.fac += cost; c.fac[key] = lv + 1;
@@ -4445,7 +4473,16 @@ const TOWN = {
     house: { jp: 'クラブハウス', cost: 60000, mo: 5, up: 150, rec: 0.6, will: 0.05 },
     dorm: { jp: '選手寮', cost: 50000, mo: 4, up: 120, age: 21, young: 1.06, pot: 1 },
     indoor: { jp: '室内練習場', cost: 80000, mo: 6, up: 200, inj: 0.85 },
+    // 駅の向こう (2026-10-25): open once the 7 buildings above are up (TOWN.west). reborn: + the chance of a 転生 each season,
+    // fill: a full house is this share of the seats (97% without), local: % of the academy's own players born in the
+    // club's prefecture (55% without), yo: the academy graduates' 総合力
+    museum: { jp: 'クラブミュージアム', cost: 300000, mo: 6, up: 300, per: 0.01, tgt: 0.03, fan: 0.02, reborn: 0.1, east: 1 },
+    station: { jp: 'スタジアム前駅', cost: 500000, mo: 12, up: 200, att: 0.04, fill: 0.99, tgt: 0.02, fan: 0.01, east: 1 },
+    school: { jp: 'サッカースクール', cost: 200000, mo: 4, up: 150, local: 80, yo: 1, tgt: 0.02, fan: 0.01, east: 1 },
+    hotel: { jp: 'クラブホテル', cost: 600000, mo: 12, up: 400, att: 0.02, per: 0.03, east: 1 },
   },
+  west: ['roof', 'food', 'shop', 'sclub', 'house', 'dorm', 'indoor'],
+  fill: 0.97,    // a full house: this share of the seats
   per: 0.22,     // a spectator's ticket (万円; was 0.2 + スタジアム設備 Lv2 × 0.01)
   works: 0.9,    // the home crowd while a stand is being built
   facUp: { train: 80, youth: 80, medical: 80, scout: 40 },   // upkeep a month for each facility level above the start
@@ -4459,6 +4496,10 @@ const TOWN = {
   hist: 40,      // my club's supporters kept for the chart (c.fanH: the start, each month, each new season)
 };
 const TOWN_KEYS = Object.keys(TOWN.b);
+const TOWN_EAST = TOWN_KEYS.filter(k => TOWN.b[k].east);
+// 駅の向こう is open when every building around the stadium is up (the stands don't count)
+function townEast(c) { return TOWN.west.every(k => built(c, k)); }
+function townFill(c) { return built(c, 'station') ? TOWN.b.station.fill : TOWN.fill; }
 function townOf(c) { if (!c.town) c.town = { b: {}, exp: 0, job: null }; if (!c.town.b) c.town.b = {}; return c.town; }
 function built(c, k) { return !!(c && c.town && c.town.b && c.town.b[k]); }
 function townWorks(c) { return !!(c && c.town && c.town.job && c.town.job.k === 'exp'); }
@@ -4484,6 +4525,7 @@ function townCan(S, k, cid) {
   const c = S.clubs[cid || S.my]; if (!c || !TOWN.b[k]) return { ok: false, msg: '建てられません' };
   const nx = townNext(c, k), T = townOf(c);
   if (!nx) return { ok: false, msg: k === 'exp' ? 'これ以上は増築できません' : 'すでに建っています' };
+  if (TOWN.b[k].east && !townEast(c)) return { ok: false, msg: `駅の向こうは、スタジアムのまわりの建物を${TOWN.west.length}つ建てると開きます`, locked: true, ...nx };
   if (T.job) return { ok: false, msg: `${TOWN.b[T.job.k].jp}の工事中です（${jdate(T.job.to)}完成予定）`, busy: true, ...nx };
   if (c.funds < nx.cost) return { ok: false, msg: `資金が足りません（${money(nx.cost)}）`, short: true, ...nx };
   return { ok: true, ...nx };
@@ -4513,7 +4555,7 @@ function townDone(S, c) {
   if (c.id === S.my) {
     const text = j.k === 'exp' ? `スタジアムの増築が完成しました。収容は${c.cap.toLocaleString('ja-JP')}人になりました。` : `${b.jp}が完成しました。`;
     news(S, `【完成】${text}`, 'big');
-    secPost(S, 'built', { k: j.k, step: j.step || 0, cap: c.cap, text }, { stop: true });
+    secPost(S, 'built', { k: j.k, step: j.step || 0, cap: c.cap, text, east: TOWN.west.includes(j.k) && townEast(c) ? 1 : 0 }, { stop: true });
   } else if (j.k === 'exp' && S.order.includes(c.id)) news(S, `${c.short}のスタジアムが${b.seats.toLocaleString('ja-JP')}席増えて、${c.cap.toLocaleString('ja-JP')}人収容に。`, 'info');
 }
 // --- supporters ---
@@ -4587,7 +4629,8 @@ function townInfo(S, cid) {
   return { fans: fansOf(c), target: Math.round(fansTarget(c)), cap: c.cap, att, full: att != null ? att / Math.max(1, c.cap) : null, per: gatePer(c), upkeep: townUpkeep(c), upF,
     job: T.job ? { ...T.job, jp: TOWN.b[T.job.k].jp, left: Math.max(0, D.diff(T.job.to, S.date)), days: Math.max(1, D.diff(T.job.to, T.job.from)) } : null,
     b: TOWN_KEYS.map(k => ({ k, jp: TOWN.b[k].jp, built: k === 'exp' ? (T.exp || 0) : !!(T.b && T.b[k]), next: townNext(c, k) })),
-    hist: h.slice(), fans0: s0 && c.id === S.my ? s0[1] : null, games, works: townWorks(c) };
+    hist: h.slice(), fans0: s0 && c.id === S.my ? s0[1] : null, games, works: townWorks(c),
+    east: { open: townEast(c), west: TOWN.west.filter(k => built(c, k)).length, n: TOWN_EAST.filter(k => built(c, k)).length }, fill: townFill(c) };
 }
 
 /* ---------- firing & offers ---------- */
@@ -5592,7 +5635,7 @@ function sendScout(S, key) {
 }
 function scoutReturns(S) {
   if (!S.scout || S.date < S.scout.back) return;
-  const sc = SCOUT[S.scout.key]; const lv = (S.clubs[S.my].fac.scout || 1);
+  const sc = SCOUT[S.scout.key]; const lv = facEff(S.clubs[S.my].fac.scout || 1);
   const pids = [];
   for (let i = 0; i < 3; i++) {
     const a = ri(sc.age[0], sc.age[1]);
@@ -5796,16 +5839,16 @@ function rollover(S) {
   // youth intake
   for (const cid of S.order) {
     const c = S.clubs[cid];
-    const k = cid === S.my ? 2 + Math.floor(c.fac.youth / 2) : 2;
-    const base = clubBase(S, cid), lv = cid === S.my ? c.fac.youth : 2;
+    const k = cid === S.my ? 2 + Math.floor(Math.min(5, c.fac.youth) / 2) : 2;   // Lv6〜10 add quality, not players
+    const base = clubBase(S, cid), lv = cid === S.my ? facEff(c.fac.youth) : 2, sch = built(c, 'school') ? TOWN.b.school.yo : 0;
     for (let i = 0; i < k; i++) {
       const pt = intakePot(S, cid, lv);
-      const pr = genPlayer(S, cid, { age: 18, foreign: false, local: true, ovr: Math.round(base + INTAKE.ovr + lv * INTAKE.lvO) + ri(-2, 2), pot: pt.pot, cap: pt.cap });
+      const pr = genPlayer(S, cid, { age: 18, foreign: false, local: true, ovr: Math.round(base + INTAKE.ovr + lv * INTAKE.lvO) + sch + ri(-2, 2), pot: pt.pot, cap: pt.cap });
       pr.yo = cid;   // ユース出身 (2026-10-15: earlier academy players aren't marked)
       if (cid === S.my) { news(S, `ユースから${pr.name}（${pr.pos}）がトップ昇格。`, 'grow'); track(S, pr); }
     }
     // ユースの逸材: now and then a 16-17-year-old with a huge ceiling (a better academy finds them more often)
-    const gemP = cid === S.my ? GEM.base + GEM.lv * c.fac.youth : GEM.ai;
+    const gemP = cid === S.my ? GEM.base + GEM.lv * lv : GEM.ai;
     if (R() < gemP) {
       const pt = gemPot(lv);
       const pr = genPlayer(S, cid, { age: 16, foreign: false, local: true, pos: wpick(['DF', 'MF', 'FW'], x => ({ DF: 2.6, MF: 3.4, FW: 2.6 })[x]), ovr: base - 10 + Math.round(lv / 2) + ri(-2, 2), pot: pt.pot, cap: pt.cap, sty: pick(['tech', 'tech', 'speed', 'phys', '']) });
@@ -6486,7 +6529,7 @@ const API = {
   LC_OLD, LC_STAGE, cupNames, roundName, fxEn, cupDepth, cupFinal, tieLegs, tieAgg, lcNew, lc1Alive,
   AFC, AFC_ST, AFC_SPREAD, isAfc, isForeign, afcOn, afcData, afcInfo, afcStr, afcQuick, afcSeason, afcJapan, afcDates, afcProgress, afcTable, afcResched, afcCatchUp, afcMy, afcRecKey, afcDone, afcSquad, afcClub,
   ABROAD, abroadOf, isAbroadClub, price, addAbroad, abroadReluct, nameKey, realNames, reservedNames, freshName, renamePlayer, genPlayer,
-  CARDS, BOARD, BOARD_LV, BOARD_EXP, boardExp, boardLv, boardGrace, tenure, DIST, distMonth, EXPECT, expectPower, setExpectations, CUPS, CUP_PRIZE, NATIONAL, fxLabel, cupResult, cupWinner, hypeMatch, HYPE, SUB_RATE, subRate, STYLE, GROW, RARE, INTAKE, potCap, clubBase, devWeek, shareFor, LOAN, GEM, REBORN, LEGENDS, legendOf, rebornCheck, makeReborn, rebornNum, myLoans, loanCan, loanOptions, loanOut, growthOutlook, weeksLeft, yearsTo, bigGame, rivalry, SCOUT, sendScout, playShare, marketList, ensureFreeAgents, upgrade, facCost, TOWN, townOf, built, townNext, townCan, townBuild, townDay, townUpkeep, townInfo, townSeason, townInj, townAtt, gatePer, attEst, fansLog, addMonths, fansOf, fansTarget, fansAdd, fansMatch, fansSeason, fansMonth, intakePot, takeJob, rollover, endSeason, news, fire,
+  CARDS, BOARD, BOARD_LV, BOARD_EXP, boardExp, boardLv, boardGrace, tenure, DIST, distMonth, EXPECT, expectPower, setExpectations, CUPS, CUP_PRIZE, NATIONAL, fxLabel, cupResult, cupWinner, hypeMatch, HYPE, SUB_RATE, subRate, STYLE, GROW, RARE, INTAKE, potCap, clubBase, devWeek, shareFor, LOAN, GEM, REBORN, LEGENDS, legendOf, rebornCheck, makeReborn, rebornNum, myLoans, loanCan, loanOptions, loanOut, growthOutlook, weeksLeft, yearsTo, bigGame, rivalry, SCOUT, sendScout, playShare, marketList, ensureFreeAgents, upgrade, facCost, facEff, facFx, FAC_MAX, TOWN, TOWN_EAST, townEast, townFill, townOf, built, townNext, townCan, townBuild, townDay, townUpkeep, townInfo, townSeason, townInj, townAtt, gatePer, attEst, fansLog, addMonths, fansOf, fansTarget, fansAdd, fansMatch, fansSeason, fansMonth, intakePot, takeJob, rollover, endSeason, news, fire,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Engine = API;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -7907,8 +7950,8 @@ Object.assign(SEC_VIEW, {
     title: n => n.data.k === 'exp' ? `スタジアム増築 ${n.data.step}期が完成` : `${E.TOWN.b[n.data.k].jp}が完成`,
     body: n => { const k = n.data.k, B = E.TOWN.b[k];
       return `<div class="ht-done"><span class="ht-mag built lg">${htIc(k)}</span><div class="t"><b>${k === 'exp' ? `収容 ${(n.data.cap || 0).toLocaleString('ja-JP')}席` : esc(B.jp)}</b><small>維持費 月${E.money(B.up)}（来月から）</small></div></div>
-        ${htChips(k)}<p class="small" style="margin:0">${k === 'exp' ? '席が増えたので、満員で入れなかったサポーターも入れます。' : ''}${B.fan ? `完成を聞いて、サポーターが${Math.round(B.fan * 100)}%増えました。` : ''}</p>
-        <button class="btn primary block" data-act="htGo" style="min-height:44px">ホームタウンを見る</button>`; },
+        ${htChips(k)}<p class="small" style="margin:0">${k === 'exp' ? '席が増えたので、満員で入れなかったサポーターも入れます。' : ''}${B.fan ? `完成を聞いて、サポーターが${Math.round(B.fan * 100)}%増えました。` : ''}${n.data.east ? '<br>スタジアムのまわりの建物がそろったので、<b>駅の向こう</b>に新しい区画が開きました。' : ''}</p>
+        <button class="btn primary block" data-act="htGo" data-k="${n.data.east ? 'museum' : k}" style="min-height:44px">${n.data.east ? '駅の向こうを見る' : 'ホームタウンを見る'}</button>`; },
     done: 'わかりました',
   },
   town: {
@@ -8144,6 +8187,11 @@ const HT_IC = {
   youth: '<path d="M12 21v-9"/><path d="M12 12c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/>',
   medical: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>',
   scout: '<circle cx="7" cy="15" r="3.5"/><circle cx="17" cy="15" r="3.5"/><path d="M10.5 15h3M7 11.5l2-6h1.5M17 11.5l-2-6h-1.5"/>',
+  museum: '<path d="M3 9l9-5 9 5z"/><path d="M4 20h16M6 10v8M10 10v8M14 10v8M18 10v8"/>',
+  station: '<rect x="6" y="3" width="12" height="13" rx="3"/><path d="M6 9.5h12"/><circle cx="9.2" cy="12.8" r=".9"/><circle cx="14.8" cy="12.8" r=".9"/><path d="M8.5 21l2-5M15.5 21l-2-5"/>',
+  school: '<circle cx="12" cy="12" r="8"/><path d="M12 8.6l3.2 2.3-1.2 3.7h-4l-1.2-3.7z"/><path d="M12 4v4.6M19.6 9.5l-4.4 1.4M16.7 18.5l-2.7-3.9M7.3 18.5l2.7-3.9M4.4 9.5l4.4 1.4"/>',
+  hotel: '<rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9.5 7.5v7M14.5 7.5v7M9.5 11h5"/><path d="M10 21v-3h4v3"/>',
+  lock: '<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3"/>',
   crowd: '<circle cx="9" cy="8" r="3"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.4"/><path d="M15.2 14.6A4.4 4.4 0 0 1 21 18.8"/>',
 };
 const htIc = (k, cls) => `<svg class="${cls || 'ht-ic'}" viewBox="0 0 24 24" aria-hidden="true">${HT_IC[k] || ''}</svg>`;
@@ -8152,8 +8200,11 @@ const ppl = n => { n = Math.round(n || 0); const r = n % 10000; return n >= 1000
 const yen = man => `${Math.round(man * 10000).toLocaleString('ja-JP')}円`;
 const sgn = n => `${n > 0 ? '+' : n < 0 ? '−' : '±'}${Math.abs(n).toLocaleString('ja-JP')}`;
 const HT_FAC = ['train', 'youth', 'medical', 'scout'];
-const HT_SHORT = { exp: '増築', roof: '屋根・ビジョン', food: 'グルメ', shop: 'ショップ', sclub: 'サポーターズ', house: 'クラブハウス', dorm: '選手寮', indoor: '室内練習場' };
-const HT_POS = { stad: [158, 202], exp: [262, 146], train: [52, 60], youth: [134, 60], medical: [216, 60], scout: [298, 60], shop: [40, 170], food: [40, 258], roof: [312, 196], house: [52, 330], dorm: [134, 330], indoor: [216, 330], sclub: [298, 330] };
+const HT_SHORT = { exp: '増築', roof: '屋根・ビジョン', food: 'グルメ', shop: 'ショップ', sclub: 'サポーターズ', house: 'クラブハウス', dorm: '選手寮', indoor: '室内練習場', museum: 'ミュージアム', station: '新駅', school: 'スクール', hotel: 'ホテル' };
+const HT_POS = { stad: [158, 202], exp: [262, 146], train: [52, 60], youth: [134, 60], medical: [216, 60], scout: [298, 60], shop: [40, 170], food: [40, 258], roof: [306, 196], house: [52, 330], dorm: [134, 330], indoor: [216, 330], sclub: [298, 330] };
+// 駅の向こう (2026-10-25, the user's 案2): a second board of its own — the line from the stadium at the top with the new
+// station on it, the street down to the school's pitch, the shops and the park (案1, the board going on below, wasn't chosen)
+const HT_POS2 = { station: [180, 84], museum: [70, 222], hotel: [292, 222], school: [262, 352] };
 const HT_DESC = {
   exp: 'スタンドを5,000席増やします。満員で入れなかったサポーターが入れるようになり、入場料が増えます。工事中のホーム戦は、席が減るので観客が1割少なくなります。',
   roof: 'スタンドを覆う屋根と大型ビジョン。雨の日も観やすく、試合の熱気が伝わるスタジアムに。観客が増え、1人あたりの売上も上がります。',
@@ -8163,6 +8214,10 @@ const HT_DESC = {
   house: '練習の合間に体を休める場所。選手のコンディションが毎日少し早く戻り、移籍の交渉で「行ってもいい」と思われやすくなります。',
   dorm: '若手が暮らす寮。21歳以下の選手が少し早く伸び、ユースから上がってくる選手の伸びしろが少し大きくなります。',
   indoor: '天気に左右されない練習場。試合と練習でのケガが減ります。',
+  museum: 'クラブの歴史とレジェンドを伝える展示館。往年の名選手の魂を継ぐ若者が現れやすくなり（転生）、街の誇りになってサポーターが増えます。',
+  station: 'スタジアムの目の前に新しい駅。来やすくなって観客が増え、満員の試合でも、もう少したくさんのサポーターが入れます。',
+  school: '子どもたちのサッカースクール。地元生まれの選手がユースに集まり（地元の星）、昇格してくる選手が少しうまくなります。',
+  hotel: 'スタジアムの隣のホテル。遠くのサポーターも泊まりがけで来られるようになり、観客と1人あたりの売上が増えます。',
 };
 // what a building does, as chips
 function htFx(k) {
@@ -8176,6 +8231,10 @@ function htFx(k) {
   if (b.will) out.push(`移籍の意思 +${pc(b.will)}`);
   if (b.young) out.push(`${b.age}歳以下の成長 ×${b.young}`, `ユース昇格 伸びしろ +${b.pot}`);
   if (b.inj) out.push(`ケガ −${pc(1 - b.inj)}`);
+  if (b.reborn) out.push(`転生の確率 +${pc(b.reborn)}`);
+  if (b.fill) out.push(`満員の上限 ${pc(E.TOWN.fill)}→${pc(b.fill)}`);
+  if (b.local) out.push(`ユースの地元出身 55→${b.local}%`);
+  if (b.yo) out.push(`ユース昇格 総合力 +${b.yo}`);
   return out;
 }
 const htChips = k => `<div class="ht-fx">${htFx(k).map(x => `<span class="chip acc">${x}</span>`).join('')}</div>`;
@@ -8210,12 +8269,21 @@ function viewTown() {
   const d0 = I.fans0 != null ? I.fans - I.fans0 : null;
   const over = Math.round((I.fans - I.cap) / 100) * 100;
   const note = over >= 500 ? `満員の試合は、席が取れないサポーターがおよそ${ppl(over)}人。`
-    : I.full != null && I.full >= 0.9 ? 'ほぼ満員。サポーターが増えたら増築の出番です。'
+    : I.full != null && I.full >= 0.9 ? (E.townNext(c, 'exp') || (job && job.k === 'exp') ? 'ほぼ満員。サポーターが増えたら増築の出番です。' : `ほぼ満員。スタジアムはこれ以上増築できません。${E.built(c, 'station') ? '' : I.east.open ? '駅の向こうに新駅ができると、もう少し入れます。' : ''}`)
     : I.att != null ? `まだ席に余裕があります（平均で約${ppl(Math.round((I.cap - I.att) / 100) * 100)}席の空き）。` : '今季のホーム戦はまだありません。';
   const x = px => `${(px / 361 * 100).toFixed(2)}%`;
-  const tok = (k, st, label, sub, aria) => { const [px_, py] = HT_POS[k]; return `<button class="ht-tok ${st}" style="left:${x(px_)};top:${py}px" data-act="htOpen" data-k="${k}" aria-label="${esc(aria)}"><span class="ht-mag ${st}">${htIc(st === 'job' ? 'crane' : k)}${st === 'fac' ? `<em>Lv${sub}</em>` : ''}</span><span class="lbl">${label}</span>${st === 'empty' && sub ? `<span class="pr">${sub}</span>` : ''}</button>`; };
+  const tok = (k, st, label, sub, aria, pos) => { const [px_, py] = (pos || HT_POS)[k], s0 = st.split(' ')[0]; return `<button class="ht-tok ${st}" style="left:${x(px_)};top:${py}px" data-act="htOpen" data-k="${k}" aria-label="${esc(aria)}"><span class="ht-mag ${st}">${htIc(s0 === 'job' ? 'crane' : k)}${s0 === 'fac' ? `<em>Lv${sub}</em>` : ''}</span><span class="lbl">${label}</span>${s0 === 'empty' && sub ? `<span class="pr">${sub}</span>` : ''}</button>`; };
   const oku = v => E.money(v).replace('円', '');
-  const facs = HT_FAC.map(k => tok(k, 'fac', E.FACILITY[k].jp, c.fac[k], `${E.FACILITY[k].jp} Lv${c.fac[k]}`)).join('');
+  const facs = HT_FAC.map(k => tok(k, `fac${c.fac[k] > 5 ? ' hi' : ''}`, E.FACILITY[k].jp, c.fac[k], `${E.FACILITY[k].jp} Lv${c.fac[k]}`)).join('');
+  // 駅の向こう: shut (a lock and how many are left), or the four buildings
+  const east = (pos = HT_POS2) => E.TOWN_EAST.map(k => {
+    const B = E.TOWN.b[k];
+    if (job && job.k === k) return tok(k, 'job', `工事中 ${pct}%`, null, `${B.jp}（工事中 ${pct}%）`, pos);
+    if (E.built(c, k)) return tok(k, 'built', HT_SHORT[k], null, `${B.jp}（完成）`, pos);
+    return tok(k, `empty${I.east.open ? '' : ' shut'}`, HT_SHORT[k], oku(B.cost), `${B.jp}（${E.money(B.cost)}${I.east.open ? '' : '・まだ建てられません'}）`, pos);
+  }).join('');
+  const left = E.TOWN.west.length - I.east.west;
+  const shut = I.east.open ? '' : `<span class="ht-shut">${htIc('lock')}スタジアムのまわりの建物を${E.TOWN.west.length}つ建てると開きます（あと${left}つ）</span>`;
   const blds = ['shop', 'food', 'roof', 'house', 'dorm', 'indoor', 'sclub'].map(k => {
     const B = E.TOWN.b[k];
     if (job && job.k === k) return tok(k, 'job', `工事中 ${pct}%`, null, `${B.jp}（工事中 ${pct}%）`);
@@ -8240,9 +8308,29 @@ function viewTown() {
         <path class="ch thin" d="M95 400 L 102 300 L 92 140"/><path class="ch thin" d="M361 240 L 270 240 L 250 300"/><path class="ch thin" d="M258 400 L 262 300"/>
       </g>
     </svg>
-    <span class="ht-lab" style="left:${x(18)};top:18px">クラブの施設</span><span class="ht-lab" style="right:${x(22)};top:140px">川</span><span class="ht-lab" style="right:${x(14)};top:292px">駅 →</span>
+    <span class="ht-lab" style="left:${x(18)};top:18px">クラブの施設</span><span class="ht-lab" style="right:${x(22)};top:140px">川</span><button class="ht-lab ht-go" style="right:${x(10)};top:286px" data-act="htEast" data-k="east">駅の向こう →</button>
     ${stad}${expTok}${facs}${blds}
   </div>`;
+  // the second board: 駅の向こう
+  const ties = Array.from({ length: 26 }, (_, i) => { const xx = i * 15; const y = 84 - xx * 0.021; return `<path class="rail" d="M${xx} ${y - 5} L ${xx + 1} ${y + 5}"/>`; }).join('');
+  const board2 = `<div class="ht-board ht-east${I.east.open ? '' : ' shut'}">
+    <svg class="map" viewBox="0 0 361 432" preserveAspectRatio="none" aria-hidden="true">
+      <g filter="url(#ht-chalk2)">
+        <path class="rail" d="M-5 81 L 370 73"/><path class="rail" d="M-5 87 L 370 79"/>${ties}
+        <rect class="ch thin" x="130" y="96" width="100" height="10" rx="2"/>
+        <path class="ch" d="M172 106 L 170 432"/><path class="ch" d="M190 106 L 192 432"/>
+        <path class="ch thin" d="M0 296 L 170 296"/><path class="ch thin" d="M192 290 L 361 290"/>
+        <rect class="ch thin" x="212" y="320" width="104" height="64" rx="2"/><path class="ch thin" d="M264 320 V 384"/><circle class="ch thin" cx="264" cy="352" r="10"/>
+        <circle class="ch thin" cx="44" cy="350" r="11"/><circle class="ch thin" cx="70" cy="372" r="9"/><circle class="ch thin" cx="96" cy="346" r="12"/><path class="ch thin" d="M44 361 v8 M70 381 v7 M96 358 v9"/>
+      </g>
+      <defs><filter id="ht-chalk2"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7"/><feDisplacementMap in="SourceGraphic" scale="1.6"/></filter></defs>
+    </svg>
+    <button class="ht-lab ht-go" style="left:${x(8)};top:30px" data-act="htEast" data-k="">← スタジアム</button>
+    <span class="ht-lab" style="left:${x(198)};top:150px;writing-mode:vertical-rl">駅前通り</span><span class="ht-lab" style="left:${x(26)};top:396px">公園</span><span class="ht-lab" style="left:${x(110)};top:276px">商店街</span>
+    ${east(HT_POS2)}${shut ? `<div class="ht-shutw" style="top:150px">${shut}</div>` : ''}
+  </div>`;
+  const onE = !!UI.htE;
+  const sw = `<div class="seg ht-sw"><button data-act="htEast" data-k="" aria-pressed="${!onE}">スタジアムのまわり</button><button data-act="htEast" data-k="east" aria-pressed="${!!onE}">駅の向こう${I.east.open ? ` ${I.east.n}/${E.TOWN_EAST.length}` : ''}</button></div>`;
   const jobCard = job ? `<section class="card ht-job">
       <div class="row"><div class="eyebrow">工事中</div><span class="spacer"></span><span class="chip acc">あと${job.left}日</span></div>
       <div class="ht-job-t"><b>${htJobName(job)}</b>${job.k === 'exp' ? `<span class="small muted">+${E.TOWN.b.exp.seats.toLocaleString('ja-JP')}席 → ${(I.cap + E.TOWN.b.exp.seats).toLocaleString('ja-JP')}席</span>` : ''}</div>
@@ -8262,15 +8350,15 @@ function viewTown() {
         <div><small>スタジアム</small><b>${ppl(I.cap)}<span>席</span></b><i>${I.att != null ? `平均 ${ppl(I.att)}人・${Math.round(I.full * 100)}%` : esc(c.stadium || '')}</i></div>
       </div>
       <p class="ht-note">${note}</p></section>
-    ${board}${jobCard}${chart}${money}`;
+    ${sw}${onE ? board2 : board}${jobCard}${chart}${money}`;
 }
 // クラブ → 経営: the facilities and the buildings, in one line, and the way to ホームタウン
 function townLink() {
   const c = S.clubs[S.my], I = E.townInfo(S), j = I.job;
-  const nb = I.b.filter(b => b.k !== 'exp' && b.built).length;
+  const nb = E.TOWN.west.filter(k => E.built(c, k)).length;
   return `<section class="card ht-link"><div class="row" style="gap:12px"><span class="ht-mag built sm">${htIc('exp')}</span><div style="flex:1;min-width:0"><b>ホームタウン</b>
     <div class="small muted">${HT_FAC.map(k => `${E.FACILITY[k].jp} Lv${c.fac[k]}`).join('・')}</div>
-    <div class="small muted">収容 ${c.cap.toLocaleString('ja-JP')}席・建物 ${nb}/7${j ? `・工事中 ${htJobName(j)} ${htPct(j)}%` : ''}</div></div></div>
+    <div class="small muted">収容 ${c.cap.toLocaleString('ja-JP')}席・建物 ${nb}/${E.TOWN.west.length}${I.east.open ? `・駅の向こう ${I.east.n}/${E.TOWN_EAST.length}` : ''}${j ? `・工事中 ${htJobName(j)} ${htPct(j)}%` : ''}</div></div></div>
     <button class="btn block" data-act="clView" data-k="town">施設の強化・建物はホームタウンへ</button></section>`;
 }
 // a magnet: build it (cost, months, upkeep, effects), or a facility to upgrade
@@ -8278,12 +8366,21 @@ function sheetTown(k) {
   sheetState = { type: 'town', k };
   const c = S.clubs[S.my], close = '<button class="btn ghost block" data-act="closeSheet">閉じる</button>';
   if (HT_FAC.includes(k)) {
-    const F = E.FACILITY[k], lv = c.fac[k], cost = E.facCost(lv), u = E.TOWN.facUp[k], st = E.TOWN.facStart[k];
-    const btn = lv >= 5 ? '' : c.funds < cost ? `<button class="btn primary block" disabled>資金が足りません（${E.money(cost)}）</button>` : `<button class="btn primary block" data-act="htUp" data-k="${k}" style="min-height:52px">Lv${lv + 1}に強化する（${E.money(cost)}）</button>`;
-    openSheet(`<div class="ht-sh-head"><span class="ht-mag fac lg">${htIc(k)}<em>Lv${lv}</em></span><div class="t"><div class="eyebrow">クラブの施設</div><b class="t2">${esc(F.jp)}</b><span class="stars">${'■'.repeat(lv)}${'□'.repeat(5 - lv)}</span></div></div>
-      ${lv < 5 ? `<div class="ht-kv"><div><small>Lv${lv + 1}への費用</small><b>${E.money(cost).replace('円', '')}</b></div><div><small>工期</small><b>すぐ</b></div><div><small>維持費</small><b>月+${u}万</b></div></div>` : '<div class="row"><span class="chip ok">最大レベル</span></div>'}
-      <p class="small" style="margin:0">${esc(F.desc)}。</p>
-      <p class="fine" style="margin:0">維持費は Lv${st}より上のLv1つにつき月${u}万円（いまは月${Math.max(0, lv - st) * u}万円）。${k === 'train' ? '練習方針と選手ごとのトレーニングは「選手 → 育成」で設定します。' : k === 'scout' ? 'スカウトの派遣は「クラブ → 経営」から。' : ''}</p>`,
+    const F = E.FACILITY[k], lv = c.fac[k], max = E.FAC_MAX, top = lv >= max, cost = top ? 0 : E.facCost(lv), u = E.TOWN.facUp[k], st = E.TOWN.facStart[k];
+    const btn = top ? '' : c.funds < cost ? `<button class="btn primary block" disabled>資金が足りません（${E.money(cost)}）</button>` : `<button class="btn primary block" data-act="htUp" data-k="${k}" style="min-height:52px">Lv${lv + 1}に強化する（${E.money(cost)}）</button>`;
+    // the level as 10 pips (6〜10 in yellow), and what it does now → at the next level
+    const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lv ? 'on' : ''}${i >= 5 ? ' hi' : ''}"></i>`).join('');
+    const a = E.facFx(k, lv), b = top ? null : E.facFx(k, lv + 1), f2 = v => v.toFixed(2), f1 = v => v.toFixed(1), pc = v => `${Math.round(v * 100)}%`;
+    const rows = { train: [['成長のスピード', x => `×${f2(x.grow)}`]],
+      youth: [['毎年の昇格', x => `${x.n}人`], ['逸材が来る確率', x => pc(x.gem)], ['昇格する選手の総合力', x => `+${f1(x.ovr - 1.6)}`], ['昇格する選手の伸びしろ', x => `+${f1(x.pot - 2.4)}`]],
+      medical: [['ケガ', x => `×${f2(x.inj / 1.03)}`], ['コンディションの戻り', x => `+${f1(x.rec - 1.2)}/日`]],
+      scout: [['見つける若手の伸びしろ', x => `+${Math.round(x.pot)}`]] }[k];
+    const fx = `<table class="ht-lvfx"><thead><tr><th></th><th>いま Lv${lv}</th>${b ? `<th>Lv${lv + 1}</th>` : ''}</tr></thead><tbody>${rows.map(([t, g]) => `<tr><th>${t}</th><td>${g(a)}</td>${b ? `<td class="${g(b) !== g(a) ? 'up' : ''}">${g(b)}</td>` : ''}</tr>`).join('')}</tbody></table>`;
+    openSheet(`<div class="ht-sh-head"><span class="ht-mag fac${lv > 5 ? ' hi' : ''} lg">${htIc(k)}<em>Lv${lv}</em></span><div class="t"><div class="eyebrow">クラブの施設</div><b class="t2">${esc(F.jp)}</b><span class="ht-pips" aria-label="Lv${lv}（最大${max}）">${pips}</span></div></div>
+      ${top ? '<div class="row"><span class="chip ok">最大レベル</span></div>' : `<div class="ht-kv"><div><small>Lv${lv + 1}への費用</small><b>${E.money(cost).replace('円', '')}</b></div><div><small>工期</small><b>すぐ</b></div><div><small>維持費</small><b>月+${u}万</b></div></div>`}
+      ${fx}
+      <p class="small" style="margin:0">${esc(F.desc)}。${lv >= 5 ? 'Lv6からは費用が大きく、1つ上げたときの効き目は控えめです。' : ''}</p>
+      <p class="fine" style="margin:0">数字はほかのクラブの標準（${k === 'scout' ? 'Lv1' : 'Lv2'}）とくらべたもの。維持費は Lv${st}より上のLv1つにつき月${u}万円（いまは月${Math.max(0, lv - st) * u}万円）。${k === 'train' ? '練習方針と選手ごとのトレーニングは「選手 → 育成」で設定します。' : k === 'scout' ? 'スカウトの派遣は「クラブ → 経営」から。' : ''}</p>`,
       btn + close);
     return;
   }
@@ -8292,7 +8389,7 @@ function sheetTown(k) {
   const step = mine ? job.step : nx ? nx.step : T.exp;
   const title = k === 'exp' ? `スタジアム増築${step ? ` ${step}期` : ''}` : B.jp;
   const st = mine ? 'job' : done ? 'built' : 'empty';
-  const eb = mine ? '工事中' : done ? `完成（${jd(T.b[k])}）` : k === 'exp' && !nx ? 'スタジアム' : '建てる';
+  const eb = mine ? '工事中' : done ? `完成（${jd(T.b[k])}）` : k === 'exp' && !nx ? 'スタジアム' : B.east ? '駅の向こう' : '建てる';
   let kv;
   if (mine) kv = `<div><small>完成予定</small><b>${jd(job.to)}</b></div><div><small>進み具合</small><b>${htPct(job)}%</b></div><div><small>維持費</small><b>月${B.up}万</b></div>`;
   else if (done) kv = `<div><small>完成</small><b>${jd(T.b[k])}</b></div><div><small>維持費</small><b>月${B.up}万</b></div><div><small>効果</small><b>発揮中</b></div>`;
@@ -8304,6 +8401,7 @@ function sheetTown(k) {
     const can = E.townCan(S, k);
     const fin = E.addMonths(S.date, nx.mo);
     foot = can.ok ? `<button class="btn primary block" data-act="htBuild" data-k="${k}" style="min-height:54px;font-size:16px">建てる（${E.money(nx.cost)}・${jd(fin)}完成）</button>`
+      : can.locked ? `<button class="btn primary block" disabled>${htIc('lock')} 建物を${E.TOWN.west.length}つ建てると開きます（あと${E.TOWN.west.length - I.east.west}つ）</button>`
       : can.busy ? `<button class="btn primary block" disabled>${jd(job.to)} の完成後に建てられます</button>`
       : `<button class="btn primary block" disabled>資金が足りません（あと${E.money(nx.cost - c.funds)}）</button>`;
   }
@@ -10010,7 +10108,8 @@ const ACT = {
   htOpen(d) { sheetTown(d.k); },
   htBuild(d) { const r = E.townBuild(S, d.k); toast(r.msg); if (r.ok) { persist(true); closeSheet(); render(); } else refreshSheet(); },
   htUp(d) { const r = E.upgrade(S, d.k); toast(r.msg); if (r.ok) persist(true); refreshSheet(); render(); },
-  htGo() { closeSheet(); UI.tab = 'club'; UI.cl.view = 'town'; render(); window.scrollTo(0, 0); },
+  htGo(d) { closeSheet(); UI.tab = 'club'; UI.cl.view = 'town'; UI.htE = !!(d && d.k && E.TOWN.b[d.k] && E.TOWN.b[d.k].east); render(); window.scrollTo(0, 0); },
+  htEast(d) { UI.htE = !!d.k; render(); },
   training(d) { S.training = d.k; persist(false); render(); },
   toggleList(d) { const p = S.players[d.id]; const r = E.setListed(S, p.id, !p.listed); if (!r.ok) return; persist(false); toast(p.listed ? `${r.wasKeep ? '放出不可を解除し、' : ''}${E.inWindow(S.date) ? '放出リストに載せました。オファーを待ちます' : '放出リストに載せました。移籍期間に入るとオファーが届きます'}` : '放出リストから外しました'); refreshSheet(); render(); },
   toggleKeep(d) { const p = S.players[d.id]; const r = E.setKeep(S, p.id, !p.keep); if (!r.ok) return; persist(false); toast(p.keep ? `${r.wasListed ? '放出リストから外し、' : ''}放出不可にしました。他クラブのオファーは断ります${r.n ? '（届いていたオファーも断りました）' : ''}` : '放出不可を解除しました'); refreshSheet(); render(); },
