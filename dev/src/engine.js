@@ -4754,6 +4754,13 @@ function rollover(S) {
      from the sides' strength (Japan: the squad's best XI; others: NATIONS[cc].r); appearances and goals go into p.nt.
      Each appearance: a little growth (NT.grow), a small injury risk (NT.inj); coming back he is tired (NT.tired).
    - A current international (called within a year) is worth more (NT.value) and draws a few more fans (NT.gate).
+   - 不参加と追加招集 (2026-10-25, as in reality: the FIFA rules oblige the club to release him and him to go, unless he is
+     injured or ill): on the day they join (ntDepart) a player still injured for his side's first match, or now and then
+     one who is unwell (NT.ill; he stays at his club, his condition low), does not go (C.out[pid] = {why: 'inj'|'ill', d}).
+     Japan then calls another of the same position by the call-up score (ntReplace; a goalkeeper always, otherwise half
+     the time = NT.rep), and also when a player leaves the camp injured with two or more matches still to play (C.out
+     {mid: 1}; an Asian Cup: no change once it has begun). C.rep[pid] = {for, d}. My club's players: the inbox stops
+     (sub 'out' / 'rep'). Other nations call no one from J1 in his place.
    S.nt = { cur (the event under way), done {key: 1}, res (Japan's last results), log (my club's call-ups) }. */
 const NATIONS = {
   JPN: { jp: '日本', r: 81, afc: 1 }, KOR: { jp: '韓国', r: 78, bar: 71, afc: 1 }, AUS: { jp: 'オーストラリア', r: 76, bar: 70, afc: 1 },
@@ -4787,7 +4794,12 @@ const NT = {
   grow: [[21, 0.3], [23, 0.22], [27, 0.12], [99, 0.05]],  // rating points per appearance by age (up to his ceiling)
   tired: { base: 6, app: 4, far: 6 },  // condition lost: base + per appearance (+ far for a long trip)
   value: 1.15, gate: 0.01, gateMax: 0.05,
+  ill: 0.01, illCond: [50, 60],   // unwell on the day they join: stays at his club, condition down to 50〜60
+  rep: 0.5,            // Japan calls another in his place (a goalkeeper always)
+  repJ1: 3,            // ... a J1 player sooner (he is in Japan and can join the next day; the real one of 2026-09-29 came from 町田)
 };
+// in the squad: not one who withdrew before joining (one who left the camp injured was in it)
+const ntIn = (C, id) => !(C.out && C.out[id] && !C.out[id].mid);
 const natJp = cc => (NATIONS[cc] && NATIONS[cc].jp) || cc;
 const ntName = cc => `${natJp(cc)}代表`;
 const recentNt = (p, date) => !!(p.nt && p.nt.last && D.diff(date, p.nt.last) <= 365);   // a current international
@@ -4908,6 +4920,18 @@ function acSim(S, y, jpPids) {
   const champ = ko([[f[0], f[1]]], day(29), '決勝')[0];
   return { groups, games, champ, y };
 }
+// a call-up goes into his record, my club's log and the fans of his J1 club; whether it is his first (rep: 追加招集)
+function ntMark(S, C, cc, p, rep) {
+  const N = S.nt, n = p.nt || (p.nt = { cc, caps: 0, g: 0, calls: 0 });
+  n.cc = cc; n.calls++; const first = !n.first; if (first) n.first = C.from;
+  n.last = S.date; n.lk = C.k; n.ks = (n.ks || []).concat(S.date).slice(-6);
+  if (S.order.includes(p.club)) fansAdd(S.clubs[p.club], TOWN.fan.nt);   // an international from our club
+  if (p.club === S.my) {
+    (N.log || (N.log = [])).unshift(Object.assign({ k: C.k, d: S.date, pid: p.id, name: p.name, cc, club: p.club, first }, rep ? { rep: 1 } : {}));
+    if (N.log.length > 200) N.log.length = 200;
+  }
+  return first;
+}
 // squads are named: Japan and every nation with J1 players good enough (an Asian Cup: the nations taking part)
 function ntCall(S, ev) {
   const N = S.nt;
@@ -4943,16 +4967,9 @@ function ntCall(S, ev) {
   // the records, the news and (for my players) the inbox
   const rows = [];
   for (const [cc, ids] of Object.entries(sq)) for (const id of ids) {
-    const p = S.players[id]; const n = p.nt || (p.nt = { cc, caps: 0, g: 0, calls: 0 });
-    n.cc = cc; n.calls++; const first = !n.first; if (first) n.first = ev.from;
-    n.last = S.date; n.lk = ev.k; n.ks = (n.ks || []).concat(S.date).slice(-6);
-    if (S.order.includes(p.club)) fansAdd(S.clubs[p.club], TOWN.fan.nt);   // an international from our club
-    if (p.club === S.my) {
-      rows.push({ pid: id, cc, first, kat: jp.kat.includes(id) });
-      (N.log || (N.log = [])).unshift({ k: ev.k, d: S.date, pid: id, name: p.name, cc, club: p.club, first });
-    }
+    const first = ntMark(S, C, cc, S.players[id]);
+    if (S.players[id].club === S.my) rows.push({ pid: id, cc, first, kat: jp.kat.includes(id) });
   }
-  if (N.log && N.log.length > 200) N.log.length = 200;
   N.lk = Object.assign(N.lk || {}, Object.fromEntries(Object.keys(sq).map(cc => [cc, ev.k])));
   const j1 = jp.pids.map(id => S.players[id]).filter(p => S.order.includes(p.club));
   const what = ev.kind === 'ac' ? `アジアカップ${D.y(ev.to)}（${jdate(ev.from)}〜）` : `${jdate(ev.from)}〜${jdate(ev.to)}の代表ウィーク`;
@@ -4962,10 +4979,52 @@ function ntCall(S, ev) {
     for (const r of rows) news(S, `${S.players[r.pid].name}が${ntName(r.cc)}に${r.first ? '初選出' : '選出'}${r.kat ? '（クラブでの活躍が認められての招集）' : ''}。`, 'big');
   }
 }
+// the day they join: a player still injured for his side's first match (or, now and then, unwell) stays at his club
 function ntDepart(S, C) {
   C.dep = true;
-  for (const [cc, ids] of Object.entries(C.sq)) for (const id of ids) { const p = S.players[id]; if (p && !p.retire) { p.away = { cc, to: C.back[cc] || C.to }; C.ap[id] = C.ap[id] || { n: 0, g: 0 }; } }
+  for (const [cc, ids] of Object.entries(C.sq)) {
+    const g1 = C.games.find(g => g.cc === cc), first = g1 ? D.diff(g1.d, C.from) : 3;
+    for (const id of ids.slice()) {
+      const p = S.players[id]; if (!p || p.retire || p.away || !ntIn(C, id)) continue;
+      const why = p.inj > first ? 'inj' : R() < NT.ill ? 'ill' : null;
+      if (why) { ntOut(S, C, cc, p, why); continue; }
+      p.away = { cc, to: C.back[cc] || C.to }; C.ap[id] = C.ap[id] || { n: 0, g: 0 };
+    }
+  }
   for (const cid of S.order) if (cid !== S.my) validateLineup(S, cid);
+}
+// 不参加 (mid: he left the camp injured). Japan calls another of his position: a goalkeeper always, otherwise NT.rep of
+// the time; once the camp has begun only with two matches still to play, and not in an Asian Cup under way
+function ntOut(S, C, cc, p, why, mid) {
+  (C.out || (C.out = {}))[p.id] = Object.assign({ why, d: S.date }, mid ? { mid: 1 } : {});
+  if (why === 'ill') p.cond = Math.min(p.cond, ri(NT.illCond[0], NT.illCond[1]));
+  const left = C.games.filter(g => g.cc === cc && !g.played && g.d > S.date).length;
+  const rep = cc === 'JPN' && (!mid || (C.kind === 'win' && left >= 2)) && (p.pos === 'GK' || R() < NT.rep) ? ntReplace(S, C, p) : null;
+  const cl = q => S.order.includes(q.club) ? `（${S.clubs[q.club].short}）` : '';
+  const what = why === 'ill' ? '体調不良' : '負傷';
+  if (!mid && (cc === 'JPN' || p.club === S.my)) news(S, `${ntName(cc)}の${p.name}${cl(p)}が${what}のため不参加。${rep ? `代わって${rep.name}${cl(rep)}を追加招集。` : cc === 'JPN' ? '追加招集はなし。' : ''}`, 'nt');
+  if (mid && rep) news(S, `${ntName(cc)}：負傷で離脱した${p.name}${cl(p)}に代わって、${rep.name}${cl(rep)}を追加招集。`, 'nt');
+  if (p.club === S.my && !mid) {
+    news(S, `${p.name}は${what}のため${ntName(cc)}の活動に不参加。${why === 'ill' ? 'クラブで静養する' : 'クラブに残って治療する'}。`, 'warn');
+    S.inbox.unshift({ id: S.nextInboxId++, type: 'nt', sub: 'out', k: C.k, kind: C.kind, rows: [{ pid: p.id, cc, why }], from: C.from, to: C.to, d: S.date, seen: false, done: false });
+  }
+  return rep;
+}
+// 追加招集: the next of that position by the call-up score (J1 and the 海外組, fit, not already with a national team)
+function ntReplace(S, C, out) {
+  const inSq = new Set(Object.values(C.sq).flat());
+  const pool = Object.values(S.players).filter(p => p.nat === 'JPN' && p.pos === out.pos && !inSq.has(p.id) && S.clubs[p.club] && (S.order.includes(p.club) || S.clubs[p.club].ab)
+    && !p.retire && !p.loan && p.inj <= 0 && !p.away && age(p, S.date) >= 17);
+  if (!pool.length) return null;
+  const p = pool.map(q => ({ q, v: ntScore(S, q) + R() * 2 - 1 + (S.order.includes(q.club) ? NT.repJ1 : 0) })).sort((a, b) => b.v - a.v)[0].q;
+  C.sq.JPN.push(p.id); (C.rep || (C.rep = {}))[p.id] = { for: out.id, d: S.date };
+  const first = ntMark(S, C, 'JPN', p, true);
+  if (C.dep) { p.away = { cc: 'JPN', to: C.back.JPN || C.to }; C.ap[p.id] = C.ap[p.id] || { n: 0, g: 0 }; }
+  if (p.club === S.my) {
+    news(S, `${p.name}が日本代表に${first ? '初選出（追加招集）' : '追加招集'}。${out.name}の代わり。`, 'big');
+    S.inbox.unshift({ id: S.nextInboxId++, type: 'nt', sub: 'rep', k: C.k, kind: C.kind, rows: [{ pid: p.id, cc: 'JPN', first, rep: 1 }], from: C.from, to: C.to, d: S.date, seen: false, done: false });
+  } else if (C.dep && S.order.includes(p.club)) validateLineup(S, p.club);
+  return p;
 }
 // who plays for Japan: the best XI (with some rotation) and five from the bench
 function ntPlayers(S, ids) {
@@ -5023,6 +5082,7 @@ function ntApp(S, C, p, goals) {
   if (p.inj <= 0 && R() < NT.inj) {
     p.inj = ri(5, 25); p.away.to = S.date;   // he leaves the camp
     if (p.club === S.my) news(S, `${p.name}が${ntName(p.away.cc)}の試合で負傷し、チームを離脱。全治およそ${p.inj}日。`, 'warn');
+    ntOut(S, C, p.away.cc, p, 'inj', true);
   }
 }
 // back at the club: tired after the trip (an Asian Cup or a trip far away tires more)
@@ -5047,11 +5107,13 @@ function ntDay(S) {
   if (C.dep && S.date > last && C.games.every(g => g.played)) {
     for (const id of Object.values(C.sq).flat()) { const p = S.players[id]; if (p && p.away) ntBack(S, C, p); }
     if (C.ac) {
-      const mine = C.sq[C.ac.champ] && C.sq[C.ac.champ].some(id => S.players[id] && S.players[id].club === S.my);
+      const won = (C.sq[C.ac.champ] || []).filter(id => ntIn(C, id));   // not those who withdrew before it began
+      const mine = won.some(id => S.players[id] && S.players[id].club === S.my);
       news(S, `アジアカップ${C.ac.y}は${ntName(C.ac.champ)}が優勝。${mine ? '自クラブの選手もタイトルに貢献した。' : ''}`, C.ac.champ === 'JPN' ? 'big' : 'nt');
-      for (const id of C.sq[C.ac.champ] || []) { const p = S.players[id]; if (p && p.nt) p.nt.ac = (p.nt.ac || 0) + 1; }
+      for (const id of won) { const p = S.players[id]; if (p && p.nt) p.nt.ac = (p.nt.ac || 0) + 1; }
     }
-    N.done[C.k] = 1; N.past = [{ k: C.k, kind: C.kind, from: C.from, to: C.to, champ: C.ac ? C.ac.champ : null, jp: C.sq.JPN.length, j1: C.sq.JPN.filter(id => S.players[id] && S.order.includes(S.players[id].club)).length }].concat(N.past || []).slice(0, 12);
+    const jpIn = C.sq.JPN.filter(id => ntIn(C, id));
+    N.done[C.k] = 1; N.past = [{ k: C.k, kind: C.kind, from: C.from, to: C.to, champ: C.ac ? C.ac.champ : null, jp: jpIn.length, j1: jpIn.filter(id => S.players[id] && S.order.includes(S.players[id].club)).length }].concat(N.past || []).slice(0, 12);
     N.cur = null;
     for (const it of S.inbox) if (it.type === 'nt' && it.k === C.k) it.done = true;
     const keys = Object.keys(N.done); if (keys.length > 24) for (const k of keys.slice(0, keys.length - 24)) delete N.done[k];
@@ -5375,7 +5437,7 @@ const API = {
   acceptOffer, rejectOffer, raiseOffer, OFFER_UP, setListed, setKeep, transferDay, bid, NEGO, negoInfo, negoWill, negoOf, negoStart, negoOffer, negoAgree, decideRetirements, shortlist, shortEntry, unshort, bidBlock,
   FORM_DESC, LINE, BUILD, WIDTH, MARK, KILL, CLOSE, setCloseOut, TAC_DEF, tacX, tacLabel, setTac, aiPlan, aiMentality, CLUB_STYLE, widthFit, markTarget,
   NUM_MAX, numOpen, numNext, setNum, checkTitle, leagueLeft, progressCups,
-  NATIONS, NT, natJp, ntName, ntEvents, ntWindows, inNtWindow, ntNow, inNtBreak, recentNt, ntScore, ntForm, ntDay, ntCall, ntPower, abShare, EURO, euroWanted, euroOffer, euroDay, seasonDates, cupSchedule, J1_2026, AC_2027,
+  NATIONS, NT, natJp, ntName, ntEvents, ntWindows, inNtWindow, ntNow, inNtBreak, recentNt, ntScore, ntForm, ntDay, ntCall, ntPower, ntIn, ntDepart, ntOut, ntReplace, abShare, EURO, euroWanted, euroOffer, euroDay, seasonDates, cupSchedule, J1_2026, AC_2027,
   LC_OLD, LC_STAGE, cupNames, roundName, fxEn, cupDepth, cupFinal, tieLegs, tieAgg, lcNew, lc1Alive,
   AFC, AFC_ST, AFC_SPREAD, isAfc, isForeign, afcOn, afcData, afcInfo, afcStr, afcQuick, afcSeason, afcJapan, afcDates, afcProgress, afcTable, afcResched, afcCatchUp, afcMy, afcRecKey, afcDone, afcSquad, afcClub,
   ABROAD, abroadOf, isAbroadClub, price, addAbroad, abroadReluct, nameKey, realNames, reservedNames, freshName, renamePlayer, genPlayer,

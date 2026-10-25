@@ -803,21 +803,29 @@ function ntCard() {
   const ac = C.kind === 'ac';
   const mine = [];
   for (const [cc, ids] of Object.entries(C.sq)) for (const id of ids) { const p = S.players[id]; if (p && p.club === S.my) mine.push({ p, cc }); }
+  const out = C.out || {}, rep = C.rep || {};   // 不参加・負傷で離脱 / 追加招集 (2026-10-25)
   const stat = ({ p }) => {
+    const o = out[p.id]; if (o && !o.mid) return `${o.why === 'ill' ? '体調不良' : '負傷'}のため不参加・クラブで${o.why === 'ill' ? '静養' : '治療'}`;
     const a = C.ap[p.id], done = a && a.n ? `${a.n}試合${a.g ? `${a.g}得点` : '出場'}` : '';
     if (p.away) return `${done ? done + '・' : ''}〜${jd(p.away.to)}`;
     return C.dep ? `${done || '出場なし'}・帰国` : `${jd(C.from)}合流`;
   };
   const rows = mine.map(x => {
-    const L = log.find(l => l.k === C.k && l.pid === x.p.id);
-    return `<li><button class="ntrow" data-act="player" data-id="${x.p.id}">${posTag(x.p)}<span class="nm"><b>${esc(x.p.name)}</b><span class="chips"><span class="chip ntchip">${esc(E.ntName(x.cc))}</span>${L && L.first ? '<span class="chip acc">初選出</span>' : ''}${C.kat.includes(x.p.id) ? '<span class="chip ok">活躍枠</span>' : ''}</span><span class="st">${stat(x)}</span></span></button></li>`;
+    const L = log.find(l => l.k === C.k && l.pid === x.p.id), o = out[x.p.id];
+    const tag = o ? `<span class="chip warn">${o.mid ? '負傷で離脱' : '不参加'}</span>` : rep[x.p.id] ? '<span class="chip ok">追加招集</span>' : '';
+    return `<li><button class="ntrow" data-act="player" data-id="${x.p.id}">${posTag(x.p)}<span class="nm"><b>${esc(x.p.name)}</b><span class="chips"><span class="chip ntchip">${esc(E.ntName(x.cc))}</span>${tag}${L && L.first ? '<span class="chip acc">初選出</span>' : ''}${C.kat.includes(x.p.id) ? '<span class="chip ok">活躍枠</span>' : ''}</span><span class="st">${stat(x)}</span></span></button></li>`;
   }).join('');
   const jg = C.games.filter(g => g.cc === 'JPN');
   const shown = ac ? jg.filter((g, i) => g.played || i === 0 || jg[i - 1].played) : jg;
   // scorers once each, 上田×2 for more than one
   const who = g => [...new Set(g.sc || [])].map(id => S.players[id]).filter(Boolean).map(p => { const n = g.sc.filter(x => x === p.id).length; return esc(p.short) + (S.order.includes(p.club) ? `（${esc(S.clubs[p.club].short)}）` : '') + (n > 1 ? `×${n}` : ''); }).join('・');
   const games = shown.map(g => `<li><div class="fx"><span class="h">日本</span><span class="sc ${g.played ? '' : 'pending'}">${g.played ? `${g.hg}-${g.ag}${g.pk ? `<small>PK${g.pk[0]}-${g.pk[1]}</small>` : ''}` : 'vs'}</span><span class="a">${esc(E.natJp(g.opp))}</span></div><div class="fx-note">${jdw(g.d)}・${g.stage ? esc(g.stage) : g.home > 0 ? '国内' : '国外'}${g.played && who(g) ? '・得点 ' + who(g) : ''}</div></li>`).join('');
-  const j1 = C.sq.JPN.map(id => S.players[id]).filter(p => p && S.order.includes(p.club));
+  const jIn = C.sq.JPN.filter(id => E.ntIn(C, id)).map(id => S.players[id]).filter(Boolean), j1 = jIn.filter(p => S.order.includes(p.club));
+  const nm = p => esc(p.short) + (S.order.includes(p.club) ? `（${esc(S.clubs[p.club].short)}）` : '');
+  const jOut = mid => C.sq.JPN.filter(id => out[id] && !out[id].mid === !mid).map(id => S.players[id]).filter(Boolean);
+  // who did not go / left the camp: full names (two 鈴木 in one line), the club if J1, 体調不良
+  const full = p => esc(p.name) + ((x => x.length ? `（${x.join('・')}）` : '')([S.order.includes(p.club) ? esc(S.clubs[p.club].short) : '', out[p.id] && out[p.id].why === 'ill' ? '体調不良' : ''].filter(Boolean)));
+  const gone = (jOut(false).length ? `不参加：${jOut(false).map(full).join('、')}。` : '') + (jOut(true).length ? `負傷で離脱：${jOut(true).map(full).join('、')}。` : '');
   // an Asian Cup: the tournament's own dates (the players join the camp a few days earlier, C.from)
   const st = ac ? `${C.ac.y}-01-07` : C.from;   // the Asian Cup opens on 1/7 (acSim plays from that day)
   const note = ac ? `冬の中断期間中の大会（代表は${jd(C.from)}に合流）。敗退すると選手は戻ってくる。戻った選手は疲れが残る。`
@@ -826,8 +834,17 @@ function ntCard() {
     <div class="row"><div class="eyebrow">${ac ? `アジアカップ${C.ac.y}` : '代表ウィーク'}</div><span class="spacer"></span><span class="small muted">${jd(st)}〜${jd(C.to)}</span></div>
     ${mine.length ? `<ul class="list">${rows}</ul>` : `<p class="small muted" style="margin:0">${esc(S.clubs[S.my].short)}から選ばれた選手はいない。</p>`}
     <div><div class="eyebrow" style="margin-bottom:6px">日本代表の試合</div><ul class="list">${games}</ul></div>
-    <p class="fine" style="margin:0">日本代表 ${C.sq.JPN.length}人のうち、Jリーグから${j1.length}人：${j1.map(p => `${esc(p.short)}（${esc(S.clubs[p.club].short)}）${C.kat.includes(p.id) ? '※活躍枠' : ''}`).join('、') || 'なし'}。${note}</p>
+    <p class="fine" style="margin:0">日本代表 ${jIn.length}人のうち、Jリーグから${j1.length}人：${j1.map(p => `${nm(p)}${C.kat.includes(p.id) ? '※活躍枠' : rep[p.id] ? '※追加招集' : ''}`).join('、') || 'なし'}。${gone}${note}</p>
   </section>`;
+}
+// the toast when the day stops for the national team: named, 不参加 or 追加招集 (2026-10-25)
+function ntToast(its) {
+  const who = sub => its.filter(x => x.sub === sub).flatMap(x => x.rows).map(r => S.players[r.pid]).filter(Boolean);
+  const out = who('out'), rep = who('rep'), nm = ps => ps.map(p => p.short).join('・');
+  if (out.length && rep.length) return `代表：${nm(out)}が不参加、${nm(rep)}が追加招集`;
+  if (out.length) return `${nm(out)}が${its.find(x => x.sub === 'out').rows[0].why === 'ill' ? '体調不良' : '負傷'}で代表に不参加`;
+  if (rep.length) return `${nm(rep)}が日本代表に追加招集`;
+  return '代表メンバーが発表されました';
 }
 // a player's national-team record (player sheet)
 function ntBlock(p) {
@@ -2905,10 +2922,11 @@ function go() {
   if (S.seasonEnd) return sheetSeasonEnd();
   const mf = E.myFixtureToday(S); if (mf) return sheetPrematch(mf.id);
   const st = E.advance(S);
+  const nts = S.inbox.filter(x => x.type === 'nt' && !x.seen);   // (the home card marks them seen)
   persist(false);
   render();
   if (st.stop === 'match') sheetPrematch(st.fid);
-  else if (st.stop === 'inbox') { const it = S.inbox.find(x => x.type !== 'youth'); UI.tab = 'home'; render(); window.scrollTo(0, 0); toast(it && it.type === 'scout' ? 'スカウトが戻りました' : it && it.type === 'nt' ? '代表メンバーが発表されました' : '移籍オファーが届きました'); }
+  else if (st.stop === 'inbox') { const it = S.inbox.find(x => x.type !== 'youth'); UI.tab = 'home'; render(); window.scrollTo(0, 0); toast(it && it.type === 'scout' ? 'スカウトが戻りました' : it && it.type === 'nt' ? ntToast(nts.length ? nts : [it]) : '移籍オファーが届きました'); }
   else if (st.stop === 'note') { if (/フロント/.test(st.text)) { UI.tab = 'home'; render(); window.scrollTo(0, 0); } toast(st.text); }
   else if (st.stop === 'sec') { UI.tab = 'home'; render(); window.scrollTo(0, 0); if (E.sponPending(S) && E.secNotes(S).some(n => n.k === 'spon' && !n.seen)) sheetSpon(); else if (E.campPending(S) && E.secNotes(S).some(n => n.k === 'camp' && !n.seen)) sheetCamp(); else sheetSec(); }
   else if (st.stop === 'camp') { persist(true); UI.tab = 'home'; render(); window.scrollTo(0, 0); sheetCampRep(); }
