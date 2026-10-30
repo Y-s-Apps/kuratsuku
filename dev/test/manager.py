@@ -1,6 +1,7 @@
 # 監督名: the club sheet has no name field any more; 「◯◯で始める」 opens the nameplate (no focus until tapped), Enter only
 # closes the keyboard, 「就任する」 starts, 「戻る」 goes back to the club, and an empty name starts as 「あなた」.
 import asyncio, pathlib, os, re
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 ROOT = pathlib.Path('/home/claude/kuratsuku/dev'); OUT = ROOT/'test'/'shots'
 FONTS = pathlib.Path(os.environ.get('KTK_FONTS', '/nonexistent'))
@@ -24,9 +25,9 @@ async def main():
             async def route(r):
                 u = r.request.url
                 if 'lz-string' in u: await r.fulfill(status=200, content_type='application/javascript', body=LZ)
-                elif 'fonts.googleapis.com' in u and css: await r.fulfill(status=200, content_type='text/css', body=css)
-                elif 'fonts.gstatic.com/fs/' in u:
-                    fn = u.split('/fs/')[1]; fam = next(x for x in ['yusei-magic', 'zen-kaku-gothic-new', 'dela-gothic-one'] if fn.startswith(x))
+                elif urlparse(u).hostname == 'fonts.googleapis.com' and css: await r.fulfill(status=200, content_type='text/css', body=css)
+                elif urlparse(u).hostname == 'fonts.gstatic.com' and urlparse(u).path.startswith('/fs/'):
+                    fn = urlparse(u).path.split('/fs/', 1)[1]; fam = next(x for x in ['yusei-magic', 'zen-kaku-gothic-new', 'dela-gothic-one'] if fn.startswith(x))
                     await r.fulfill(status=200, content_type='font/woff2', body=(FONTS/fam/'files'/fn).read_bytes())
                 else: await r.abort()
             await page.route('https://**/*', route)

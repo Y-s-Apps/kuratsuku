@@ -6,13 +6,21 @@
 ②遊ぶ（次へ進む・キックオフ＝ライブの試合・秘書のおすすめを優先して押す）。押すのは JS の click()（長い文字列で
 レイアウトが崩れても止まらない）。1回押すごとに、on〜 属性に仕込みの文字が入った要素・<img src="x"> が無いかを見る。
 合格: 仕込みが一度も動かない・タグにならない・仕込みの文字が画面に文字として出ている（仕込みが届いている確認）。
-usage: python3 dev/test/inject.py [見て回る回数=500] [遊ぶ回数=400] [seed=1]   （既定で約2分半）
-`KTK_PAGE=<touchline.html>` で別のビルド（テストが見張れているかの確認: esc() を素通しにしたビルドなら FAIL になる）"""
+2段（2026-10-30〜）: ① 上のセーブを、読み込みの無害化（app.js の deTagAll＝セーブの < > " ' ` を全角に）を外したページで。
+画面の esc() だけで守れているかを見る（以前からの感度のまま）。② 本番のビルドに、文字でない値（クラブの色・略称、
+選手のポジション・背番号・総合力・国籍、約7,000個）の後ろに同じ仕込みを付けたコードを読み込ませ、少し見て回る。
+esc() を通さずに出している値（style="" の色、${dp}、数字）でも動かないか＝読み込みの無害化を見る（2026-10-30 に
+これで穴が見つかった: 直す前のビルドは73回動いた）。
+usage: python3 dev/test/inject.py [見て回る回数=500] [遊ぶ回数=400] [seed=1] [②で押す回数=150]   （既定で約3分）
+`KTK_PAGE=<touchline.html>` で別のビルド（テストが見張れているかの確認: esc() を素通しにしたビルドなら①が、
+deTagAll を素通しにしたビルドなら②が FAIL になる）"""
 import asyncio, pathlib, sys, random, json, subprocess, time, os
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 ROOT = pathlib.Path('/home/claude/kuratsuku/dev'); OUT = ROOT / 'test' / 'shots' / 'inject'; OUT.mkdir(parents=True, exist_ok=True)
 BROWSE = int(sys.argv[1]) if len(sys.argv) > 1 else 500; PLAY = int(sys.argv[2]) if len(sys.argv) > 2 else 400
 SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 1; random.seed(SEED)
+RAW = int(sys.argv[4]) if len(sys.argv) > 4 else 150
 PAY = '"\'><img src=x onerror=console.error(/XSSFIRED/)>'
 MAKE = r'''
 const E = require('./src/engine.js'), DATA = require('./data.json');
@@ -23,16 +31,25 @@ for (let i = 0; i < 140; i++) {
   if (st.stop === 'match') { const f = S.fixtures.find(y => y.id === st.fid); const M = E.createMatch(S, f); E.simulateFull(S, M); E.finishMatch(S, M); S.board = Math.max(S.board, 50); }
   else if (st.stop === 'inbox') S.inbox.forEach(y => { y.seen = true; if (y.type === 'offer') E.rejectOffer(S, y.id); });
 }
-const PAY = process.argv[2]; let n = 0;
+const PAY = process.argv[2]; let n = 0, n2 = 0;
+// ② 文字でない値（esc() を通さずに出している所がある）: 日本語の文字列に仕込む前の写しに
+const T = JSON.parse(JSON.stringify(S)), put = (o, k) => { if (o[k] != null) { o[k] = o[k] + PAY; n2++; } };
+for (const c of Object.values(T.clubs)) ['c1', 'c2', 'abbr'].forEach(k => put(c, k));
+for (const p of Object.values(T.players)) ['pp', 'num', 'ovr', 'nat'].forEach(k => put(p, k));
 const walk = o => { for (const k of Object.keys(o)) { const v = o[k];
   if (typeof v === 'string' && /[^\x00-\x7f]/.test(v)) { o[k] = v + PAY; n++; } else if (v && typeof v === 'object') walk(v); } };
 walk(S); S.sec.name = PAY;
-process.stdout.write(JSON.stringify({ n, date: S.date, save: S }));
+process.stdout.write(JSON.stringify({ n, n2, date: S.date, save: S, raw: T }));
 '''
 made = json.loads(subprocess.run(['node', '-e', MAKE, str(SEED + 6), PAY], cwd=ROOT, capture_output=True, text=True, check=True).stdout)
 LZ = (ROOT / 'test/vendor/lz-string.min.js').read_text()
 PAGE = ROOT / 'test' / 'page_inject.html'   # page.html はほかの画面のテストが使うので別の名前
-PAGE.write_text('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>' + pathlib.Path(os.environ.get('KTK_PAGE') or ROOT / 'dist/touchline.html').read_text() + '</body></html>')
+PAGE2 = ROOT / 'test' / 'page_inject2.html'
+BUILD = pathlib.Path(os.environ.get('KTK_PAGE') or ROOT / 'dist/touchline.html').read_text()
+HEAD = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body>'
+NOCLEAN = 'function deTagAll(o) {'   # ①は読み込みの無害化を外す（無いビルド＝2026-10-30 より前はそのまま）
+PAGE.write_text(HEAD + BUILD.replace(NOCLEAN, NOCLEAN + ' return o;', 1) + '</body></html>')
+PAGE2.write_text(HEAD + BUILD + '</body></html>')
 # 押してよいもの（セーブを消す・タイトルに戻る・契約や移籍を決めるものは押さない）
 OK = set('''tab sqView lgView clView mkView player team teamTab teamPlayer teamBack playerBack secOpen secPre fxDetail sponOpen
   campOpen presets presetEdit presetRename presetSave secName closeSheet go quick kickoff mClose mSkip mResult round training plan
@@ -47,23 +64,28 @@ PROBE = '''() => { const bad = [];
 ACTS = '''() => { const all = [...document.querySelectorAll('[data-act]')], s = document.querySelector('#sheet.on');
   return all.map((e, i) => [e.dataset.act, i, !s || s.contains(e) || !!e.closest('#match')]).filter(a => a[2]).map(a => [a[0], a[1]]); }'''
 
+async def open_page(b, path, save):
+    """ページを開き、タイトルの「引き継ぎコードで復元」に save のコードを貼って読み込む（実際の貼り付けと同じ道すじ）"""
+    ctx = await b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, has_touch=True)
+    page = await ctx.new_page(); fired = []; errs = []
+    page.on('console', lambda m: fired.append(m.text) if 'XSSFIRED' in m.text else (errs.append('CONSOLE: ' + m.text) if m.type == 'error' and 'ERR_' not in m.text else None))
+    page.on('pageerror', lambda e: errs.append('PAGEERROR: ' + str(e)))
+    async def route(r):   # 2026-10-30 からアーティファクト版は lz-string を埋め込むので、外へは何も読みに行かない
+        if urlparse(r.request.url).path.endswith('/lz-string.min.js'): await r.fulfill(status=200, content_type='application/javascript', body=LZ)
+        else: await r.abort()
+    await page.route('https://**/*', route)
+    await page.goto('file://' + str(path)); await page.wait_for_timeout(300)
+    await page.evaluate("() => localStorage.removeItem('touchline.j1.save')"); await page.reload(); await page.wait_for_timeout(300)
+    code = await page.evaluate('s => "KTK1.lz:" + LZString.compressToBase64(JSON.stringify(s))', save)
+    await page.click('[data-act="importOpen"]'); await page.fill('#imp-code', code); await page.click('#sheet [data-act="doImport"]'); await page.wait_for_timeout(400)
+    imported = await page.evaluate("() => !!localStorage.getItem('touchline.j1.save')")
+    return page, fired, errs, imported
+
 async def main():
     t0 = time.time()
     async with async_playwright() as p:
-        b = await p.chromium.launch(); ctx = await b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, has_touch=True)
-        page = await ctx.new_page(); fired = []; errs = []
-        page.on('console', lambda m: fired.append(m.text) if 'XSSFIRED' in m.text else (errs.append('CONSOLE: ' + m.text) if m.type == 'error' and 'ERR_' not in m.text else None))
-        page.on('pageerror', lambda e: errs.append('PAGEERROR: ' + str(e)))
-        async def route(r):
-            if 'lz-string' in r.request.url: await r.fulfill(status=200, content_type='application/javascript', body=LZ)
-            else: await r.abort()
-        await page.route('https://**/*', route)
-        await page.goto('file://' + str(PAGE)); await page.wait_for_timeout(300)
-        await page.evaluate('() => localStorage.clear()'); await page.reload(); await page.wait_for_timeout(300)
-        # 引き継ぎコードで復元（タイトル画面から、実際の貼り付けと同じ道すじ）
-        code = await page.evaluate('s => "KTK1.lz:" + LZString.compressToBase64(JSON.stringify(s))', made['save'])
-        await page.click('[data-act="importOpen"]'); await page.fill('#imp-code', code); await page.click('#sheet [data-act="doImport"]'); await page.wait_for_timeout(400)
-        imported = await page.evaluate("() => !!localStorage.getItem('touchline.j1.save')")
+        b = await p.chromium.launch()
+        page, fired, errs, imported = await open_page(b, PAGE, made['save'])
         r0 = await page.evaluate(PROBE); bad = [(0, 'import', r0['bad'])] if r0['bad'] else []
         await page.screenshot(path=str(OUT / 'title.png'))
         if await page.locator('text=つづきから').count(): await page.click('text=つづきから'); await page.wait_for_timeout(500)   # 復元するとそのままホームへ
@@ -83,16 +105,34 @@ async def main():
                 if len(bad) <= 5: await page.screenshot(path=str(OUT / f'bad-{len(bad)}.png'))
             if i in (BROWSE // 2, BROWSE + PLAY // 2): await page.screenshot(path=str(OUT / f'step-{i}.png'))
         date = await page.evaluate("() => JSON.parse(LZString.decompressFromBase64(localStorage.getItem('touchline.j1.save').slice(3))).date")
+        # ② 本番のビルドに文字でない値の仕込み
+        page2, fired2, errs2, imported2 = await open_page(b, PAGE2, made['raw'])
+        r = await page2.evaluate(PROBE); bad2 = [(0, 'import', r['bad'])] if r['bad'] else []; shown2 = r['shown']
+        for i in range(RAW):
+            acts = [a for a in await page2.evaluate(ACTS) if a[0] in OK and a[0] not in ('go', 'quick', 'kickoff')]
+            if not acts: await page2.keyboard.press('Escape'); await page2.wait_for_timeout(100); continue
+            act, idx = random.choice(acts)
+            try: await page2.evaluate('i => document.querySelectorAll("[data-act]")[i].click()', idx)
+            except Exception: pass
+            await page2.wait_for_timeout(90)
+            r = await page2.evaluate(PROBE); shown2 = max(shown2, r['shown'])
+            if r['bad']: bad2.append((i, act, r['bad']))
+        await page2.screenshot(path=str(OUT / 'raw.png'))
         await b.close()
     print(f"仕込んだ文字列 {made['n']}・{made['date']} → {date}（{BROWSE}+{PLAY}回押した、{time.time() - t0:.0f}秒）")
     print('押したもの:', json.dumps(dict(sorted(seen.items(), key=lambda x: -x[1])), ensure_ascii=False))
     print('ほかのエラー:', len(errs), '\n'.join(list(dict.fromkeys(errs))[:6]))
+    print(f"② 文字でない値に仕込んだ {made['n2']}（{RAW}回押した）・ほかのエラー {len(errs2)}", '\n'.join(list(dict.fromkeys(errs2))[:4]))
     checks = [
         (imported, '引き継ぎコードで復元できた'),
         (not fired, f'仕込みが動いた回数 {len(fired)}'),
         (not bad, f'タグになった場所 {bad[:5]}'),
         (shown > 0, f'仕込みの文字が画面に文字として出ている（最大 {shown} か所）'),
         (seen.get('kickoff', 0) > 0, f"ライブの試合も見た（キックオフ {seen.get('kickoff', 0)} 回）"),
+        (imported2, '② 文字でない値に仕込んだコードも復元できた'),
+        (not fired2, f'② 仕込みが動いた回数 {len(fired2)}'),
+        (not bad2, f'② タグになった場所 {bad2[:5]}'),
+        (shown2 > 0, f'② 仕込みの文字が画面に文字として出ている（最大 {shown2} か所）'),
     ]
     fails = 0
     for ok, msg in checks:

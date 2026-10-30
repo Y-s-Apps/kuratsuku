@@ -8,20 +8,26 @@ const data = fs.readFileSync(path.join(d, 'data.json'), 'utf8');
 const eng = fs.readFileSync(path.join(d, 'src/engine.js'), 'utf8');
 const app = fs.readFileSync(path.join(d, 'src/app.js'), 'utf8');
 const m2d = fs.readFileSync(path.join(d, 'src/match2d.js'), 'utf8');
-if (/<\/script/i.test(data + eng + app + m2d)) throw new Error('script close tag inside inline code');
+// lz-string 1.5.0 (the save's compression): the PWA serves the file next to index.html, the artifact carries it inline
+// (2026-10-30: no script from a CDN — the same bytes as the npm package's libs/lz-string.min.js)
+const LZ_TAG = '<script src="lz-string.min.js"></script>';
+const lz = fs.readFileSync(path.join(d, '..', 'lz-string.min.js'), 'utf8');
+if (/<\/script/i.test(data + eng + app + m2d + lz)) throw new Error('script close tag inside inline code');
+if (tpl.split(LZ_TAG).length !== 2) throw new Error('lz-string tag');
 function fill(html) {
   for (const [k, v] of [['/*DATA*/', data], ['/*ENGINE*/', eng], ['/*M2D*/', m2d], ['/*APP*/', app]]) { const i = html.indexOf(k); if (i < 0) throw new Error(k); html = html.slice(0, i) + v + html.slice(i + k.length); }
   return html;
 }
 // ---- artifact
-const art = fill(tpl);
+const art = fill(tpl).replace(LZ_TAG, () => `<script>${lz.trim()}</script>`);
+if (/<script[^>]+src=/i.test(art)) throw new Error('external script left in the artifact');
 fs.mkdirSync(path.join(d, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(d, 'dist/touchline.html'), art);
 // ---- PWA
 const cut = tpl.indexOf('<div id="root"></div>');
 const headPart = tpl.slice(0, cut);
-let bodyPart = tpl.slice(cut).replace('<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>', '<script src="lz-string.min.js"></script>');
-if (bodyPart.includes('cdnjs')) throw new Error('cdn script left in PWA build');
+let bodyPart = tpl.slice(cut);
+if (!bodyPart.includes(LZ_TAG) || /<script[^>]+src="(?!lz-string\.min\.js")/i.test(bodyPart)) throw new Error('scripts in the PWA build');
 const version = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
 const pwa = `<!doctype html>
 <html lang="ja">

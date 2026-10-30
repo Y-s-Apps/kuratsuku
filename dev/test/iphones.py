@@ -7,6 +7,7 @@
 # here, and the title (laid out in the page at screen height + 1px) must settle at the right height without flipping
 # back and forth (an earlier fix flickered ~12 times a second on an iPhone 16).
 import asyncio, pathlib, os, re, threading, http.server, functools
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 REPO = pathlib.Path('/home/claude/kuratsuku'); OUT = REPO/'dev/test/shots'
 FONTS = pathlib.Path(os.environ.get('KTK_FONTS', '/nonexistent'))  # optional @fontsource node_modules for real glyphs
@@ -61,9 +62,9 @@ async def main():
                 page = await ctx.new_page()
                 async def route(r):
                     u = r.request.url
-                    if 'fonts.googleapis.com' in u and css: await r.fulfill(status=200, content_type='text/css', body=css)
-                    elif 'fonts.gstatic.com/fs/' in u:
-                        fn = u.split('/fs/')[1]; fam = next(x for x in ['yusei-magic', 'zen-kaku-gothic-new', 'dela-gothic-one', 'dotgothic16'] if fn.startswith(x))
+                    if urlparse(u).hostname == 'fonts.googleapis.com' and css: await r.fulfill(status=200, content_type='text/css', body=css)
+                    elif urlparse(u).hostname == 'fonts.gstatic.com' and urlparse(u).path.startswith('/fs/'):
+                        fn = urlparse(u).path.split('/fs/', 1)[1]; fam = next(x for x in ['yusei-magic', 'zen-kaku-gothic-new', 'dela-gothic-one', 'dotgothic16'] if fn.startswith(x))
                         await r.fulfill(status=200, content_type='font/woff2', body=(FONTS/fam/'files'/fn).read_bytes())
                     else: await r.abort()
                 await page.route('https://**/*', route)

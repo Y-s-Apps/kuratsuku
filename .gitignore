@@ -1,6 +1,7 @@
 dev/test/shots/
 dev/test/page.html
 dev/test/page_inject.html
+dev/test/page_inject2.html
 dev/pwa/
 dev/icons/*.png
 dev/icons/*.html

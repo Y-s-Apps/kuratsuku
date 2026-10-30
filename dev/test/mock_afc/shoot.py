@@ -2,6 +2,7 @@
 # usage: cd dev/test/mock_afc && node make_save.js kashima 2026-11-27 > save-a.json && node make_save.js kashima 2027-03-20 > save-b.json
 #        && KTK_FONTS=<@fontsource のフォルダ> python3 shoot.py [chalk|white] [w] [h]  → out/*.png（compose.py で並べる）
 import asyncio, pathlib, os, re, json, sys
+from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 HERE = pathlib.Path(__file__).resolve().parent
 DEV = HERE.parent.parent
@@ -36,9 +37,9 @@ async def main(board, vw, vh):
         async def route(r):
             u = r.request.url
             if 'lz-string' in u: await r.fulfill(status=200, content_type='application/javascript', body=LZ)
-            elif 'fonts.googleapis.com' in u: await r.fulfill(status=200, content_type='text/css', body=css)
-            elif 'fonts.gstatic.com/fs/' in u:
-                fn = u.split('/fs/')[1]; fam = next(x for x in ['yusei-magic', 'zen-kaku-gothic-new', 'dela-gothic-one', 'dotgothic16'] if fn.startswith(x))
+            elif urlparse(u).hostname == 'fonts.googleapis.com': await r.fulfill(status=200, content_type='text/css', body=css)
+            elif urlparse(u).hostname == 'fonts.gstatic.com' and urlparse(u).path.startswith('/fs/'):
+                fn = urlparse(u).path.split('/fs/', 1)[1]; fam = next(x for x in ['yusei-magic', 'zen-kaku-gothic-new', 'dela-gothic-one', 'dotgothic16'] if fn.startswith(x))
                 await r.fulfill(status=200, content_type='font/woff2', body=(FONTS / fam / 'files' / fn).read_bytes())
             else: await r.abort()
         await page.route('https://**/*', route)

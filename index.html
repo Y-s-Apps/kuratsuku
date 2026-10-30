@@ -7587,7 +7587,22 @@ function fmtLong(s) { return `${E.D.y(s)}年${E.D.m(s)}月${E.D.d(s)}日`; }
 function serialize(st) { const json = JSON.stringify(st); try { if (window.LZString) return 'lz:' + window.LZString.compressToBase64(json); } catch (e) { /* fall through */ } return json; }
 function deserialize(str) {
   if (!str) return null;
-  try { if (str.startsWith('lz:')) return window.LZString ? JSON.parse(window.LZString.decompressFromBase64(str.slice(3))) : null; return JSON.parse(str); } catch (e) { return null; }
+  try { if (str.startsWith('lz:')) return window.LZString ? deTagAll(JSON.parse(window.LZString.decompressFromBase64(str.slice(3)))) : null; return deTagAll(JSON.parse(str)); } catch (e) { return null; }
+}
+/* a save from outside (引き継ぎコード, the cloud, this device's storage — shared with the other apps on y-s-apps.github.io)
+   can't become markup even where a value is printed without esc() (colours in style="", ids in data-*, numbers): every
+   string and key has < > " ' ` swapped for full-width look-alikes. The game's own text never has them (2026-10-30: only
+   the ACL club Johor Darul Ta'zim's English name, shown as Ta’zim) */
+const DE_TAG = { '<': '＜', '>': '＞', '"': '”', "'": '’', '`': '｀' };
+const deTag = s => s.replace(/[<>"'`]/g, c => DE_TAG[c]);
+function deTagAll(o) {
+  if (typeof o === 'string') return /[<>"'`]/.test(o) ? deTag(o) : o;
+  if (!o || typeof o !== 'object') return o;
+  for (const k of Object.keys(o)) {
+    const v = deTagAll(o[k]);
+    if (/[<>"'`]/.test(k)) { delete o[k]; o[deTag(k)] = v; } else if (v !== o[k]) o[k] = v;
+  }
+  return o;
 }
 let saveT = null;
 function saveLocalNow() { if (!S) return; S.savedAt = Date.now(); try { localStorage.setItem(LS_KEY, serialize(S)); UI.localOk = true; } catch (e) { UI.localOk = false; } }
@@ -7598,7 +7613,7 @@ function loadLocal() { try { return deserialize(localStorage.getItem(LS_KEY)); }
    copy kept on this device when it was deleted */
 const TAC_KEY = 'kuratsuku.tactics';
 function tacLibSave(list) { try { localStorage.setItem(TAC_KEY, JSON.stringify(list || [])); } catch (e) { /* storage blocked */ } }
-function tacLibLoad() { try { const v = JSON.parse(localStorage.getItem(TAC_KEY) || 'null'); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
+function tacLibLoad() { try { const v = deTagAll(JSON.parse(localStorage.getItem(TAC_KEY) || 'null')); return Array.isArray(v) ? v : []; } catch (e) { return []; } }
 function carryPresets() { const src = S || pickSave(loadLocal(), Cloud.cand); return src ? E.presetsOf(src) : tacLibLoad(); }
 function persist(cloud) { if (cloud) { clearTimeout(saveT); saveLocalNow(); setTimeout(cloudSave, 200); } else saveLocal(); }
 
@@ -7694,7 +7709,7 @@ const EMB = {
 };
 function kitVars(cid, c) {
   const e = EMB[cid];
-  if (!e) return { cls: '', st: c ? `--c1:${c.c1};--c2:${c.c2}` : '' };
+  if (!e) return { cls: '', st: c ? `--c1:${esc(c.c1)};--c2:${esc(c.c2)}` : '' };
   return { cls: e[0] === 'so' ? '' : ' k-' + e[0], st: `--c1:${e[1]};--c2:${e[2]}${e[3] ? ';--c3:' + e[3] : ''}${e[4] ? ';--r:' + e[4] : ''}` };
 }
 function kitTag(cid, c, size, base) { const v = kitVars(cid, c); return `<span class="${base || 'kit'}${size ? ' ' + size : ''}${v.cls}" style="${v.st}" aria-hidden="true"></span>`; }
@@ -7849,24 +7864,24 @@ function viewSelect() {
     <div class="select-head"><div class="eyebrow">2026/27 明治安田J1リーグ</div><h2>率いるクラブを選ぶ</h2><p class="fine">右の★はチーム力（選手の実力にクラブの格を加えたもの）。格はタイトル歴とJ1在籍年数から決まり、選手の集まりやすさやフロントの期待にも影響します。</p></div>
     <ul class="list">${ORDER.map(id => {
       const c = P.clubs[id];
-      return `<li><button class="crow" data-act="pickClub" data-id="${id}">${kitTag(id, c, 'lg')}<span><b>${esc(c.name)}</b><span>${esc(c.area)}・資金 ${E.money(c.funds)}</span></span><span style="display:grid;justify-items:end;gap:2px"><span class="stars" aria-label="チーム力">${stars(c.pred)}</span><span class="small muted">格：${E.presLabel(c.pres)}</span></span></button></li>`;
+      return `<li><button class="crow" data-act="pickClub" data-id="${esc(id)}">${kitTag(id, c, 'lg')}<span><b>${esc(c.name)}</b><span>${esc(c.area)}・資金 ${E.money(c.funds)}</span></span><span style="display:grid;justify-items:end;gap:2px"><span class="stars" aria-label="チーム力">${stars(c.pred)}</span><span class="small muted">格：${E.presLabel(c.pres)}</span></span></button></li>`;
     }).join('')}</ul>
   </div>
   <div class="title-actions"><button class="btn ghost block" data-act="toTitle">戻る</button></div></div>`;
 }
 function sheetClub(id) {
-  const P = PREVIEW, c = P.clubs[id];
+  const P = PREVIEW, c = P.clubs[id]; if (!c) return;
   const top = E.squad(P, id).sort((a, b) => b.ovr - a.ovr).slice(0, 6);
   sheetState = { type: 'club', id };
   openSheet(`<div class="row">${kitTag(id, c, 'lg')}<div><div class="eyebrow">${esc(c.area)}</div><h2>${esc(c.name)}</h2></div></div>
     <dl class="kv"><dt>ホーム</dt><dd>${esc(c.stadium)}</dd><dt>収容</dt><dd>${c.cap.toLocaleString('ja-JP')}人</dd><dt>資金</dt><dd>${E.money(c.funds)}</dd><dt>スポンサー収入</dt><dd>月 ${E.money(c.spon)}</dd><dt>チーム力</dt><dd><span class="stars">${stars(c.pred)}</span>（${c.pred}番手）</dd><dt>クラブの格</dt><dd>${presBadge(c)} ${E.presLabel(c.pres)}</dd><dt>クラブの目標</dt><dd>${esc(c.target.jp)}</dd></dl>
     <p class="fine" style="margin:-6px 0 0">${titlesText(c)}${c.o10 ? '・Jリーグ創設メンバー' : ''}</p>
     <div><div class="eyebrow" style="margin-bottom:6px">主力選手</div><ul class="list">${top.map(p => `<li><div class="prow" style="grid-template-columns:30px 1fr auto">${posTag(p)}<span class="nm"><b>${esc(p.name)}</b><span>${E.age(p, P.date)}歳 ${natChip(p)}</span></span><span class="ovr ${oc(p.ovr)}">${E.ovr(p)}</span></div></li>`).join('')}</ul></div>`,
-    `<button class="btn primary block" data-act="nameClub" data-id="${id}">${esc(c.short)}で始める</button><button class="btn ghost block" data-act="closeSheet">ほかのクラブを見る</button>`);
+    `<button class="btn primary block" data-act="nameClub" data-id="${esc(id)}">${esc(c.short)}で始める</button><button class="btn ghost block" data-act="closeSheet">ほかのクラブを見る</button>`);
 }
 // after picking a club: the manager's name, on a nameplate under the club's magnet (empty = 「あなた」)
 function sheetName(id, keep) {
-  const c = PREVIEW.clubs[id];
+  const c = PREVIEW.clubs[id]; if (!c) return;
   sheetState = { type: 'name', id };
   const kt = lum(c.c1) > 0.6 ? '#141414' : '#ffffff';
   openSheet(`<div class="mgr-card" style="--k1:${c.c1};--k2:${c.c2};--kt:${kt}">
@@ -7876,7 +7891,7 @@ function sheetName(id, keep) {
       <p class="fine" style="margin:0">あなたの名前を入れてください（12文字まで）。空欄のままなら「あなた」で始まります。</p>
       ${(() => { const n = carryPresets().length; return n ? `<p class="fine" style="margin:0">保存した戦術（${n}件）は新しいゲームでも使えます。</p>` : ''; })()}
     </div>`,
-    `<button class="btn primary block" data-act="startClub" data-id="${id}">${esc(c.short)}の監督に就任する</button><button class="btn ghost block" data-act="pickClub" data-id="${id}">戻る</button>`);
+    `<button class="btn primary block" data-act="startClub" data-id="${esc(id)}">${esc(c.short)}の監督に就任する</button><button class="btn ghost block" data-act="pickClub" data-id="${esc(id)}">戻る</button>`);
   // the keyboard's done key only closes the keyboard (starting is the button's job)
   const inp = document.getElementById('mgr-name');
   if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); inp.blur(); } });
@@ -8644,7 +8659,7 @@ function sheetSec(back, fid) {
   openSheet(`<div class="sec-head">${akiMag('md')}<div style="min-width:0;flex:1"><div class="eyebrow">${E.SEC.role}からの連絡</div><b class="sec-name">${esc(secWho())}</b></div><button class="btn ghost sec-rename" data-act="secName">名前を変える</button></div>
     ${out.join('') || `<p class="empty">いまはお知らせはありません。${esc(c.short)}の様子を見ておきますね。</p>`}`,
     (si.fix ? `<button class="btn primary block" data-act="secAll" style="min-height:54px;font-size:16px">おすすめどおりに入れ替える</button>` : '')
-    + (back === 'pre' && fid ? `<button class="btn ghost block" data-act="secPre" data-id="${fid}">試合前に戻る</button>` : '<button class="btn ghost block" data-act="closeSheet">閉じる</button>'));
+    + (back === 'pre' && fid ? `<button class="btn ghost block" data-act="secPre" data-id="${esc(fid)}">試合前に戻る</button>` : '<button class="btn ghost block" data-act="closeSheet">閉じる</button>'));
   render();
 }
 function sheetSecName(back) {
@@ -8718,7 +8733,7 @@ function sheetSpon(back, fid) {
     <p class="fine" style="margin:4px 0 0">${secNm()}のおすすめ（達成しやすい3社）を入れてあります。もう一度タップすると外れます。●の数は難しさで、難しい約束ほどボーナスが大きくなります。選ばないまま開幕戦を迎えると、おすすめの3社と契約します。</p>`,
     `<div class="sp-sum"><span>基本スポンサー<b>${spM(base)}</b></span><span>保証 計<b>${spM(G)}</b></span><span>ボーナス 最大<b>${spM(B)}</b></span></div>
     <button class="btn primary block" data-act="spSign" style="min-height:54px;font-size:16px" ${n ? '' : 'disabled'}>${n ? `この${n}社と契約する` : '1社以上選んでください'}</button>
-    ${back === 'pre' && fid ? `<button class="btn ghost block" data-act="secPre" data-id="${fid}">試合前に戻る</button>` : '<button class="btn ghost block" data-act="closeSheet">あとで決める</button>'}`);
+    ${back === 'pre' && fid ? `<button class="btn ghost block" data-act="secPre" data-id="${esc(fid)}">試合前に戻る</button>` : '<button class="btn ghost block" data-act="closeSheet">あとで決める</button>'}`);
   render();
 }
 // what a contract shows: the count, what's left, and how the bar looks
@@ -8762,7 +8777,7 @@ function sponReview(sp) {
 }
 // the pre-match sheet, when the season starts without a choice
 function spPreLine(fid) {
-  return `<div class="sec-line" style="margin-top:0">${akiMag('sm')}<p><b>スポンサーがまだ決まっていません。</b><span class="small">このままキックオフすると、おすすめの3社と契約します。</span></p></div><button class="btn ghost block" data-act="sponOpen" data-back="pre" data-fid="${fid}">スポンサーを選ぶ</button>`;
+  return `<div class="sec-line" style="margin-top:0">${akiMag('sm')}<p><b>スポンサーがまだ決まっていません。</b><span class="small">このままキックオフすると、おすすめの3社と契約します。</span></p></div><button class="btn ghost block" data-act="sponOpen" data-back="pre" data-fid="${esc(fid)}">スポンサーを選ぶ</button>`;
 }
 
 /* ---------- ホームタウン (2026-10-15, 作業5, ユーザーの選んだ案A＝作戦ボードの街の地図) ----------
@@ -8967,7 +8982,7 @@ function sheetTown(k) {
   const c = S.clubs[S.my], close = '<button class="btn ghost block" data-act="closeSheet">閉じる</button>';
   if (HT_FAC.includes(k)) {
     const F = E.FACILITY[k], lv = c.fac[k], max = E.FAC_MAX, top = lv >= max, cost = top ? 0 : E.facCost(lv), u = E.TOWN.facUp[k], st = E.TOWN.facStart[k];
-    const btn = top ? '' : c.funds < cost ? `<button class="btn primary block" disabled>資金が足りません（${E.money(cost)}）</button>` : `<button class="btn primary block" data-act="htUp" data-k="${k}" style="min-height:52px">Lv${lv + 1}に強化する（${E.money(cost)}）</button>`;
+    const btn = top ? '' : c.funds < cost ? `<button class="btn primary block" disabled>資金が足りません（${E.money(cost)}）</button>` : `<button class="btn primary block" data-act="htUp" data-k="${esc(k)}" style="min-height:52px">Lv${lv + 1}に強化する（${E.money(cost)}）</button>`;
     // the level as 10 pips (6〜10 in yellow), and what it does now → at the next level
     const pips = Array.from({ length: max }, (_, i) => `<i class="${i < lv ? 'on' : ''}${i >= 5 ? ' hi' : ''}"></i>`).join('');
     const a = E.facFx(k, lv), b = top ? null : E.facFx(k, lv + 1), f2 = v => v.toFixed(2), f1 = v => v.toFixed(1), pc = v => `${Math.round(v * 100)}%`;
@@ -9000,7 +9015,7 @@ function sheetTown(k) {
   if (!mine && !done && nx) {
     const can = E.townCan(S, k);
     const fin = E.addMonths(S.date, nx.mo);
-    foot = can.ok ? `<button class="btn primary block" data-act="htBuild" data-k="${k}" style="min-height:54px;font-size:16px">建てる（${E.money(nx.cost)}・${jd(fin)}完成）</button>`
+    foot = can.ok ? `<button class="btn primary block" data-act="htBuild" data-k="${esc(k)}" style="min-height:54px;font-size:16px">建てる（${E.money(nx.cost)}・${jd(fin)}完成）</button>`
       : can.locked ? `<button class="btn primary block" disabled>${htIc('lock')} 建物を${E.TOWN.west.length}つ建てると開きます（あと${E.TOWN.west.length - I.east.west}つ）</button>`
       : can.busy ? `<button class="btn primary block" disabled>${jd(job.to)} の完成後に建てられます</button>`
       : `<button class="btn primary block" disabled>資金が足りません（あと${E.money(nx.cost - c.funds)}）</button>`;
@@ -9699,9 +9714,9 @@ function sheetNego(id, back) {
       : `<div class="ng-step"><button class="btn" data-act="ngStep" data-d="-1" aria-label="${E.money(step)}下げる" ${fee <= step ? 'disabled' : ''}>−</button><div class="amt"><b>${E.money(fee)}</b><span>あなたの提示（相場の${(fee / pr).toFixed(2)}倍）</span></div><button class="btn" data-act="ngStep" data-d="1" aria-label="${E.money(step)}上げる" ${atAsk ? 'disabled' : ''}>＋</button></div>
       <div class="ng-quick">${[['v', '相場'], ['90', '要求額の90%'], ['95', '要求額の95%']].map(([k, l]) => `<button class="btn ghost" data-act="ngSet" data-k="${k}">${l}</button>`).join('')}</div>
       <p class="fine">要求額より低い額を出すと、相手は歩み寄るか据え置く。低すぎると我慢が2つ減り、要求額が上がる。我慢がなくなると、その日の要求額が最終提示（翌日に戻る）。</p>`}`;
-  const nav = `<div class="grid2"><button class="btn ghost" data-act="ngBack" data-id="${id}">← 選手の情報</button><button class="btn ghost" data-act="closeSheet">閉じる</button></div>`;
-  const foot = n.fin || atAsk ? `<button class="btn primary block" data-act="ngAgree" data-id="${id}">${E.money(n.ask)}で合意する</button>${nav}`
-    : `<div class="grid2"><button class="btn ghost" data-act="ngAgree" data-id="${id}">${E.money(n.ask)}で合意</button><button class="btn primary" data-act="ngOffer" data-id="${id}">${E.money(fee)}を提示</button></div>${nav}`;
+  const nav = `<div class="grid2"><button class="btn ghost" data-act="ngBack" data-id="${esc(id)}">← 選手の情報</button><button class="btn ghost" data-act="closeSheet">閉じる</button></div>`;
+  const foot = n.fin || atAsk ? `<button class="btn primary block" data-act="ngAgree" data-id="${esc(id)}">${E.money(n.ask)}で合意する</button>${nav}`
+    : `<div class="grid2"><button class="btn ghost" data-act="ngAgree" data-id="${esc(id)}">${E.money(n.ask)}で合意</button><button class="btn primary" data-act="ngOffer" data-id="${esc(id)}">${E.money(fee)}を提示</button></div>${nav}`;
   openSheet(body, foot);
 }
 /* shortlist (players I bid on) */
@@ -10008,6 +10023,8 @@ function readCode(raw) {
   if (c.startsWith(CODE_PREFIX)) c = c.slice(CODE_PREFIX.length);
   const st = deserialize(c);
   if (!st || !st.clubs || !st.players || !st.my || !st.clubs[st.my]) return null;
+  // the season and the date drive the calendar loops: a code with anything else there would hang the app at every launch
+  if (!Number.isInteger(st.season) || st.season < 2026 || st.season > 2200 || !/^\d{4}-\d{2}-\d{2}$/.test(String(st.date))) return null;
   return st;
 }
 function sheetExport() {
@@ -10412,7 +10429,7 @@ function sheetCamp() {
     : `<p class="small" style="margin:0">開幕前の夏のキャンプの行き先を決めましょう。<b>${cpPeriod(C)}の${E.CAMP.len}日間</b>で、開幕（${f && opp ? `${jd(f.date)} ${esc(opp.short)}戦` : jd(C.re)}）の${D_GAP(C)}日前に戻ります。</p>`;
   const short = T.cost > c.funds;
   const foot = (k === C.dest && decided ? `<button class="btn primary block" style="min-height:54px;font-size:16px" disabled>${k === 'none' ? '行かないことに決まっています' : `${T.jp}に決まっています`}</button>`
-      : `<button class="btn primary block" style="min-height:54px;font-size:16px" data-act="campPick" data-k="${k}" ${short ? 'disabled' : ''}>${short ? `資金が足りません（あと${E.money(T.cost - c.funds)}）` : k === 'none' ? '今年は行かない' : `${T.jp}に${decided ? '変更する' : '決める'}（${E.money(T.cost)}）`}</button>`)
+      : `<button class="btn primary block" style="min-height:54px;font-size:16px" data-act="campPick" data-k="${esc(k)}" ${short ? 'disabled' : ''}>${short ? `資金が足りません（あと${E.money(T.cost - c.funds)}）` : k === 'none' ? '今年は行かない' : `${T.jp}に${decided ? '変更する' : '決める'}（${E.money(T.cost)}）`}</button>`)
     + `<button class="btn ghost block" data-act="closeSheet">${decided ? '閉じる' : 'あとで決める'}</button>`;
   openSheet(`<div class="sec-head">${akiMag('md')}<div style="min-width:0;flex:1"><div class="eyebrow">${E.SEC.role}からの連絡</div><b class="sec-name">${esc(secWho())}</b></div></div>
     ${intro}${map}${card}<div class="cp-rec">${akiMag('sm')}<p>${cpRecLine(rec)}</p></div>${cpAbsent(C)}
@@ -10530,6 +10547,7 @@ const ACT = {
   pickClub(d) { sheetClub(d.id); },
   nameClub(d) { sheetName(d.id); },
   startClub(d) {
+    if (!PREVIEW || !PREVIEW.clubs[d.id]) return;
     const nm = (document.getElementById('mgr-name') || {}).value || '';
     const carry = carryPresets();
     S = E.newGame(DATA, d.id, nm.trim() || 'あなた', TODAY);
