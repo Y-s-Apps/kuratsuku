@@ -2,7 +2,7 @@
 // from the club's strength, the money following the chance), three at most and their places on the kit, the secretary's
 // pick at kick-off, the fixed sponsors and the guarantees every month, each condition (met / missed, the bonus the day it
 // is met), the season's end, the next season's offers, a new job, AI clubs unchanged, old saves (v13 and a save made with
-// the engine of 91d0519).
+// the engine of 0656fa9).
 // usage: node dev/test/sponsor.js
 const E = require('../src/engine.js');
 const DATA = require('../data.json');
@@ -170,14 +170,14 @@ ok(S.spon.offer.every(x => E.sponText(x) && E.sponShort(x)), `texts: ${S.spon.of
   ok(E.sponMonth(M).base === mc.spon && E.sponMonth(M).guar === 0, 'the club screen shows the old amount');
 }
 {
-  const tmp = path.join(require('os').tmpdir(), 'engine_91d0519_' + process.pid + '.js');
+  const tmp = path.join(require('os').tmpdir(), 'engine_0656fa9_' + process.pid + '.js');
   let old = null;
-  try { fs.writeFileSync(tmp, execSync('git show 91d0519:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log('(skip 91d0519 save: no git history)'); }
+  try { fs.writeFileSync(tmp, execSync('git show 0656fa9:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log('(skip 0656fa9 save: no git history)'); }
   if (old) {
     const A = old.newGame(DATA, 'kashima', '旧', '2026-10-14');
     for (let g = 0; g < 70; g++) { const st = old.advance(A, 1); if (st.stop === 'match') { const f = A.fixtures.find(y => y.id === st.fid); old.autoLineup(A, A.my); const M = old.createMatch(A, f); old.simulateFull(A, M); old.finishMatch(A, M); } else if (st.stop === 'inbox') A.inbox.forEach(y => { y.seen = true; }); }
     const B = E.migrate(clone(A), DATA);
-    ok(B.v >= 14 && B.spon.old && B.spon.s === B.season, `91d0519 save (${A.date}): migrated, the old fixed sponsors this season`);
+    ok(B.v >= 14 && B.spon.old && B.spon.s === B.season, `0656fa9 save (${A.date}): migrated, the old fixed sponsors this season`);
     let err = null, ends = 0;
     try { for (let g = 0; g < 2000 && !ends; g++) { const st = playDay(B); if (st.stop === 'seasonEnd') ends++; } } catch (e) { err = e; }
     ok(!err && B.seasonEnd && B.seasonEnd.spon == null, `the season played out without contracts${err ? ' ' + err.stack : ''}`);

@@ -1,7 +1,7 @@
 # 連携とコンボ in the browser (2026-10-15, 作業6, the user's 案A: chalk lines on the board, a card with the combos under
 # it, 相性のいい選手 on the player sheet): a new game (every line dotted, nothing yet), the same club from March (thick lines,
 # yellow for a combo, the plates and 「あと少し」, the numbers above the board include them), a player's sheet (his partners,
-# a tap opens one), the pre-match sheet (連携 and combos, theirs too), the kick-off line in the feed, an old save (be3e2da:
+# a tap opens one), the pre-match sheet (連携 and combos, theirs too), the kick-off line in the feed, an old save (a660d1d:
 # 連携 estimated from this season's minutes). iPhone 16 chalkboard, iPhone SE whiteboard. Screenshots dev/test/shots/lk-*.png.
 # usage: python3 dev/test/link.py   (KTK_FONTS=<node_modules/@fontsource> for the real fonts)
 import asyncio, pathlib, os, re, json, subprocess, sys
@@ -57,9 +57,9 @@ info.mid = { avg: Math.round(L.avg), bonus: L.bonus.toFixed(1), n: L.n, combos: 
   tiers: L.pairs.map(x => x[2] >= 90 ? 't4' : x[2] >= 70 ? 't3' : x[2] >= 40 ? 't2' : 't1'), rating: E.clubRating(M, M.my), opp: oc.short, oppAvg: Math.round(OL.avg), oppCombos: OL.combos.map(x => x.jp),
   reg: { id: reg.id, short: reg.short, part: E.linkPartners(M, reg).slice(0, 5).map(x => ({ id: x.pid, short: M.players[x.pid].short, v: Math.floor(x.v) })) }, date: M.date };
 out.mid = clone(M);
-// old: a save of be3e2da (before 連携) in December
-const tmp = path.join(os.tmpdir(), `engine_be3e2da_lk_${process.pid}.js`);
-fs.writeFileSync(tmp, execSync('git show be3e2da:dev/src/engine.js', { cwd: path.join(root, '..') }));
+// old: a save of a660d1d (before 連携) in December
+const tmp = path.join(os.tmpdir(), `engine_a660d1d_lk_${process.pid}.js`);
+fs.writeFileSync(tmp, execSync('git show a660d1d:dev/src/engine.js', { cwd: path.join(root, '..') }));
 const old = require(tmp);
 const A = old.newGame(D, 'urawa', '旧', '2026-10-14');
 play(A, '2026-12-01', old);
@@ -193,7 +193,7 @@ async def main(vw, vh, board):
         ok(bool(feed) == bool(I['combos'] or I['oppCombos']) and all('【コンボ】' in x for x in feed), f"kick-off: {' / '.join(x.replace(chr(10), ' ') for x in feed)}")
         await shot('feed')
 
-        # ---- an old save (be3e2da): 連携 from this season's minutes (the board and a regular's sheet)
+        # ---- an old save (a660d1d): 連携 from this season's minutes (the board and a regular's sheet)
         await load(SAVES['old'])
         await click('[data-act="tab"][data-tab="tactics"]', 400)
         ls = await lines(); solid = sum(1 for x in ls if x.split(' ')[0] != 't1')

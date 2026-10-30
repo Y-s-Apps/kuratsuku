@@ -3,7 +3,7 @@
 # a building's sheet → 建てる (paid up front, the works on the map and in a card, one job at a time), a facility's next
 # level, 経営 (施設・建設, 維持費, the way to ホームタウン), the days to the end of the works (the pre-match crowd, the result's
 # supporters), her note when it is done (→ ホームタウンを見る), the upkeep the month after, the month's summary (supporters,
-# works), the season's chart; a save with a stand being built; an old save (be3e2da: her note, スタジアム設備 Lv4 → 屋根と
+# works), the season's chart; a save with a stand being built; an old save (a660d1d: her note, スタジアム設備 Lv4 → 屋根と
 # 大型ビジョン・スタジアムグルメ, the days go on). iPhone 16 chalkboard, iPhone SE whiteboard. Screenshots dev/test/shots/ht-*.png.
 # usage: python3 dev/test/hometown.py   (KTK_FONTS=<node_modules/@fontsource> for the real fonts)
 import asyncio, pathlib, os, re, json, subprocess, sys
@@ -40,9 +40,9 @@ play(M, '2026-11-20'); E.townBuild(M, 'exp'); play(M, '2027-02-12');
 E.secSeen(M); M.sec.notes = M.sec.notes.filter(n => n.k === 'month'); M.sec.notes.forEach(n => { n.seen = false; });
 for (const p of E.squad(M, M.my)) { p.inj = 0; delete p.bans; delete p.away; } E.autoLineup(M, M.my); M.sec.back = [];
 out.mid = clone(M); info.mid = E.townInfo(M);
-// old: a save of be3e2da (before the hometown) with スタジアム設備 Lv4
-const tmp = path.join(os.tmpdir(), `engine_be3e2da_${process.pid}.js`);
-fs.writeFileSync(tmp, execSync('git show be3e2da:dev/src/engine.js', { cwd: path.join(root, '..') }));
+// old: a save of a660d1d (before the hometown) with スタジアム設備 Lv4
+const tmp = path.join(os.tmpdir(), `engine_a660d1d_${process.pid}.js`);
+fs.writeFileSync(tmp, execSync('git show a660d1d:dev/src/engine.js', { cwd: path.join(root, '..') }));
 const old = require(tmp);
 const A = old.newGame(D, 'machida', '旧', '2026-10-14');
 for (let g = 0; g < 60; g++) { const st = old.advance(A, 1); if (st.stop === 'match') { const f = A.fixtures.find(y => y.id === st.fid); old.autoLineup(A, A.my); const X = old.createMatch(A, f); old.simulateFull(A, X); old.finishMatch(A, X); } else if (st.stop === 'inbox') A.inbox.forEach(y => { y.seen = true; if (y.type === 'offer') old.rejectOffer(A, y.id); }); }
@@ -319,7 +319,7 @@ async def main(vw, vh, board, full):
         await click('[data-act="tab"][data-tab="club"]', 250); await click('[data-act="clView"][data-k="main"]', 300)
         ok('建物 7/7・駅の向こう 0/4' in await page.locator('.ht-link').inner_text(), '経営: 建物 7/7・駅の向こう 0/4')
 
-        # ---- an old save (be3e2da): her note, the old スタジアム設備 Lv4 as buildings, the days go on
+        # ---- an old save (a660d1d): her note, the old スタジアム設備 Lv4 as buildings, the days go on
         await load(SAVES['old'])
         bub = await page.locator('#sec-float .sec-bub').inner_text() if await has('#sec-float .sec-bub') else ''
         ok(bub and ('ホームタウン' in bub or 'ほか' in bub), f"old save: her bubble ({bub.splitlines()[0] if bub else '-'})")

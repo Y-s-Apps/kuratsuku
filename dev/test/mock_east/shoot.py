@@ -1,5 +1,5 @@
 # 2026-10-25 の画面イメージ: 施設 Lv6〜10 と「駅の向こう」を実際の画面で撮る。ユーザーに見せたのは 案1（地図を下に伸ばす）と
-# 案2（2枚目の地図）で、案2 が選ばれ 案1 のコードは外した（いまは案2だけ撮る。案1 の画像は 0faa93c の版で撮れる）
+# 案2（2枚目の地図）で、案2 が選ばれ 案1 のコードは外した（いまは案2だけ撮る。案1 の画像は 7f15993 の版で撮れる）
 # usage: python3 shoot.py [chalk|white] [幅] [高さ]  → out/*.png（make_save.js のあと。KTK_FONTS=<@fontsource> で本物の書体）
 import asyncio, pathlib, os, re, json, sys
 from urllib.parse import urlparse

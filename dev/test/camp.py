@@ -3,7 +3,7 @@
 # three weeks before (6/21 of 2027) her question stops the days and opens the map sheet (her pick chosen, the card, who
 # can't come), a tap on another magnet changes the card, the pick → the home card; through the camp (the home card on
 # its 4th day) to the report (the 14 days, the board's lines, who grew, what happened, the practice matches, the opening)
-# and back from the home card; クラブ → 経営 shows the cost; an old save (be3e2da) of 2026/27 has none that season (its
+# and back from the home card; クラブ → 経営 shows the cost; an old save (a660d1d) of 2026/27 has none that season (its
 # camp was before the game began). iPhone 16 chalkboard, iPhone SE whiteboard.
 # Screenshots dev/test/shots/cp-*.png.
 # usage: python3 dev/test/camp.py   (KTK_FONTS=<node_modules/@fontsource> for the real fonts)
@@ -54,9 +54,9 @@ const R = clone(S); play(R, C.ask); E.secSeen(R); E.campPick(R, 'oki'); play(R, 
 // a new job before her day (2026-10-16): the sponsors of the new club are still to choose (sponJob, no stop) → on her day
 // the sponsor sheet opens first, and once they're signed her map follows
 const B = clone(S); E.sponOffer(B); out.both = clone(B);
-// old saves (be3e2da) of 2026/27: no camp that season
-const tmp = path.join(os.tmpdir(), `engine_be3e2da_cp_${process.pid}.js`);
-fs.writeFileSync(tmp, execSync('git show be3e2da:dev/src/engine.js', { cwd: path.join(root, '..') }));
+// old saves (a660d1d) of 2026/27: no camp that season
+const tmp = path.join(os.tmpdir(), `engine_a660d1d_cp_${process.pid}.js`);
+fs.writeFileSync(tmp, execSync('git show a660d1d:dev/src/engine.js', { cwd: path.join(root, '..') }));
 const old = require(tmp);
 const A = old.newGame(D, 'urawa', '旧', '2026-10-14');
 play(A, '2026-12-01', old); for (const p of Object.values(A.players)) if (p.club === A.my) { p.inj = 0; p.sus = 0; } tidy(A);
@@ -225,7 +225,7 @@ async def main(vw, vh, board):
         await click('#sheet [data-act="spSign"]', 900)
         ok(await has('#sheet.on .cpA-map'), 'signed → her map sheet follows')
 
-        # ---- an old save (be3e2da) of 2026/27: no camp that season (it was before the game began)
+        # ---- an old save (a660d1d) of 2026/27: no camp that season (it was before the game began)
         await load(SAVES['old2'])
         ok(not await has('.cp-home'), f"old save ({INFO['old2']}): no camp card")
         for _ in range(3):

@@ -23,8 +23,9 @@ SEED = int(sys.argv[3]) if len(sys.argv) > 3 else 1; random.seed(SEED)
 RAW = int(sys.argv[4]) if len(sys.argv) > 4 else 150
 PAY = '"\'><img src=x onerror=console.error(/XSSFIRED/)>'
 MAKE = r'''
-const E = require('./src/engine.js'), DATA = require('./data.json');
+// the seed goes in before the engine is read (it keeps Math.random as it finds it, const R): swapped later, it did nothing (2026-10-30)
 let seed = Number(process.argv[1]); Math.random = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
+const E = require('./src/engine.js'), DATA = require('./data.json');
 const S = E.newGame(DATA, 'yokohamafm', 'テスト', '2026-10-14');
 for (let i = 0; i < 140; i++) {
   const st = E.advance(S, 1);

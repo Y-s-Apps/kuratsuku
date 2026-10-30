@@ -3,9 +3,10 @@
 // players away for their country (not in any club match), the Asian Cup 2027, offers from Europe, nationalities, old saves.
 // usage: node dev/test/nt.js [seasons for the long check (default 2)]
 const path = require('path'), fs = require('fs'), { execSync } = require('child_process');
+// the seed goes in before the engine is read (it keeps Math.random as it finds it, const R): swapped later, it did nothing (2026-10-30)
+let x = 11; Math.random = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
 const E = require('../src/engine.js'); const DATA = require('../data.json');
 let bad = 0; const ok = (c, m) => { if (!c) { bad++; console.log('NG', m); } };
-let x = 11; Math.random = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
 const play = (S, until, cb) => {
   for (let g = 0; g < 20000; g++) {
     if (until && S.date >= until) break;
@@ -178,7 +179,7 @@ const seen = { calls: [], awayIn: 0, matchesInWindow: 0, lcInWindow: 0, sameDay:
 {
   const tmp = path.join(require('os').tmpdir(), 'engine_v10_' + process.pid + '.js');
   let old = null;
-  try { fs.writeFileSync(tmp, execSync('git show 8522e66:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log('(skip old save: no git history)'); }
+  try { fs.writeFileSync(tmp, execSync('git show 98fdec9:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log('(skip old save: no git history)'); }
   if (old) {
     const oldData = JSON.parse(JSON.stringify(DATA)); for (const p of oldData.players) if (p.club === 'kashima' && p.nat !== 'JPN') p.nat = 'JPN';
     const O = old.newGame(oldData, 'yokohamafm', 'テスト', '2026-10-14');

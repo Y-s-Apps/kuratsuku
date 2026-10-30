@@ -160,7 +160,7 @@ const seen = { awayIn: 0, exp: 0, expBig: true, quals: {}, sum: {} };
 {
   const tmp = path.join(__dirname, '_old_engine_wc.js');
   try {
-    fs.writeFileSync(tmp, execSync('git show dc3095c:dev/src/engine.js', { cwd: path.join(__dirname, '..') }).toString());
+    fs.writeFileSync(tmp, execSync('git show 3fd8c3a:dev/src/engine.js', { cwd: path.join(__dirname, '..') }).toString());
     delete require.cache[require.resolve(tmp)];
     const O = require(tmp);
     const OS = O.newGame(DATA, 'kashima', 'テスト', '2026-10-14');

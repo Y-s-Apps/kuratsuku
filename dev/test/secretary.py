@@ -13,8 +13,10 @@ wrapped = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport
 (ROOT/'test/page.html').write_text(wrapped)
 LZ = (ROOT/'test/vendor/lz-string.min.js').read_text()
 MAKE = r"""
-const E = require(process.argv[1] + '/src/engine.js'); const D = require(process.argv[1] + '/data.json');
+// the seed goes in before the engine is read: it keeps Math.random as it finds it (const R), so a later swap did nothing
+// and each run made different saves (2026-10-30: now and then the player back was from an injury, or a second one came back)
 let x = 11; Math.random = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
+const E = require(process.argv[1] + '/src/engine.js'); const D = require(process.argv[1] + '/data.json');
 const clone = o => { const c = JSON.parse(JSON.stringify(o)); c.cele = []; return c; };
 const out = {};
 const S = E.newGame(D, 'yokohamafm', 'ソーイ', '2026-10-14');

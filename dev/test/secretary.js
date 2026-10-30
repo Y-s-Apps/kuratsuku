@@ -1,15 +1,16 @@
 // 秘書 (2026-10-15): the stand-ins she suggests (fit, same role first, a goalkeeper for a goalkeeper, the bench filled from
 // the reserves), nothing changes until the manager taps (one place / all), she remembers who was swapped out and offers to
 // put him back when he is fit (injury, suspension, national team), the month's summary, notes that stop the days, her
-// name, old saves (v12 and a save made with the engine of be3e2da).
+// name, old saves (v12 and a save made with the engine of a660d1d).
 // usage: node dev/test/secretary.js
+// the seed goes in before the engine is read (it keeps Math.random as it finds it, const R): swapped later, it did nothing (2026-10-30)
+let seed = 5; Math.random = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
 const E = require('../src/engine.js');
 const DATA = require('../data.json');
 const fs = require('fs'), path = require('path'), { execSync } = require('child_process');
 let fails = 0;
 const ok = (cond, msg) => { console.log((cond ? 'ok   ' : 'FAIL ') + msg); if (!cond) fails++; };
 const clone = o => JSON.parse(JSON.stringify(o));
-let seed = 5; Math.random = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >>> 17; seed ^= seed << 5; seed >>>= 0; return seed / 4294967296; };
 const playDay = S => {
   const st = E.advance(S, 1);
   if (st.stop === 'match') { const f = S.fixtures.find(y => y.id === st.fid); const M = E.createMatch(S, f); E.simulateFull(S, M); E.finishMatch(S, M); S.board = Math.max(S.board, 50); }
@@ -152,9 +153,9 @@ const M = E.migrate(O, DATA);
 ok(M.v >= 13 && E.secName(M) === 'あき' && M.sec.notes.filter(n => n.k !== 'town').length === 1 && M.sec.notes[0].k === 'hello' && M.sec.notes[0].data.old && M.sec.f0 === M.clubs[M.my].funds, 'v12 → v13: she introduces herself (first; the hometown note of v15 under it)');
 E.migrate(M, DATA); ok(M.sec.notes.filter(n => n.k === 'hello').length === 1 && M.sec.notes.length === 2, 'migrating twice: one hello');
 {
-  const tmp = path.join(require('os').tmpdir(), 'engine_be3e2da_' + process.pid + '.js');
+  const tmp = path.join(require('os').tmpdir(), 'engine_a660d1d_' + process.pid + '.js');
   let old = null;
-  try { fs.writeFileSync(tmp, execSync('git show be3e2da:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log('(skip be3e2da save: no git history)'); }
+  try { fs.writeFileSync(tmp, execSync('git show a660d1d:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log('(skip a660d1d save: no git history)'); }
   if (old) {
     const A = old.newGame(DATA, 'yokohamafm', 'テスト', '2026-10-14');
     for (let g = 0; g < 400 && A.date < '2026-09-20'; g++) {
@@ -163,13 +164,13 @@ E.migrate(M, DATA); ok(M.sec.notes.filter(n => n.k === 'hello').length === 1 && 
       else if (st.stop === 'inbox') A.inbox.forEach(y => { y.seen = true; if (y.type === 'offer') old.rejectOffer(A, y.id); });
     }
     const B = E.migrate(clone(A), DATA);
-    ok(B.v >= 13 && B.sec && B.sec.notes[0].k === 'hello', `be3e2da save (${A.date}): migrated to v13+`);
+    ok(B.v >= 13 && B.sec && B.sec.notes[0].k === 'hello', `a660d1d save (${A.date}): migrated to v13+`);
     const bc = B.clubs[B.my]; const p = B.players[bc.tac.xi[3]]; p.inj = 5;
     const n = E.secSwapAll(B).length;
-    ok(n === 1 && !E.lineupIssues(B, B.my).block, 'be3e2da save: one tap fixes the team');
+    ok(n === 1 && !E.lineupIssues(B, B.my).block, 'a660d1d save: one tap fixes the team');
     let err = null, matches = 0;
     try { for (let d = 0; d < 45; d++) { const st = playDay(B); if (st.stop === 'match') matches++; if (E.lineupIssues(B, B.my).block) E.secSwapAll(B); for (const m of E.secReturns(B)) E.secRestore(B, m.out); } } catch (e) { err = e; }
-    ok(!err && matches > 3 && B.sec.notes.some(x => x.k === 'month'), `be3e2da save: 45 days played (${matches} matches), a month summary${err ? ' ' + err.stack : ''}`);
+    ok(!err && matches > 3 && B.sec.notes.some(x => x.k === 'month'), `a660d1d save: 45 days played (${matches} matches), a month summary${err ? ' ' + err.stack : ''}`);
     fs.unlinkSync(tmp);
   }
 }

@@ -2,7 +2,7 @@
 // slower the higher it is, a sub or a red card counts his minutes only), how it falls (a club match apart, gone when he
 // leaves; a loan keeps it), the XI's average and what it adds, the nine combos (each one forced, up to three count, the
 // strongest first), the match (the numbers, the kick-off line, the first time one of mine holds), every club the same,
-// birthplaces (地元の星), old saves (v15, be3e2da: 連携 from this season's minutes), a season's numbers.
+// birthplaces (地元の星), old saves (v15, a660d1d: 連携 from this season's minutes), a season's numbers.
 // usage: node dev/test/link.js
 const E = require('../src/engine.js');
 const DATA = require('../data.json');
@@ -216,7 +216,7 @@ ok(near(v(xi[far[0]], xi[far[1]])[0], r1, 0.06), `sent off at 30: ${v(xi[far[0]]
   ok(Math.max(...sizes) < 400, `pairs per club ${Math.min(...sizes)}〜${Math.max(...sizes)} (a save stays small)`);
 }
 
-/* old saves: v15 (this engine's save with S.v 15) and be3e2da */
+/* old saves: v15 (this engine's save with S.v 15) and a660d1d */
 {
   const T = E.newGame(DATA, 'urawa', 'テスト', '2026-10-15');
   for (let g = 0; g < 200 && T.date < '2026-12-01'; g++) playDay(T);
@@ -233,18 +233,18 @@ ok(near(v(xi[far[0]], xi[far[1]])[0], r1, 0.06), `sent off at 30: ${v(xi[far[0]]
   ok(rl.length > 500 && rl.every(p => p.bp === dbp[p.id]), `v15 → 16: real players get their birthplace from the data (${rl.length}; born abroad, none)`);
   ok(Object.values(old.players).filter(p => p.gen && p.nat === 'JPN').every(p => p.bp), 'v15 → 16: made-up ones too (from their id)');
   const again = clone(old); E.migrate(again, DATA); ok(JSON.stringify(again.clubs[again.my].lk) === JSON.stringify(oc.lk), 'migrating twice changes nothing');
-  // be3e2da
-  const tmp = path.join(os.tmpdir(), `engine_be3e2da_link_${process.pid}.js`);
-  fs.writeFileSync(tmp, execSync('git show be3e2da:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') }));
+  // a660d1d
+  const tmp = path.join(os.tmpdir(), `engine_a660d1d_link_${process.pid}.js`);
+  fs.writeFileSync(tmp, execSync('git show a660d1d:dev/src/engine.js', { cwd: path.join(__dirname, '..', '..') }));
   const O = require(tmp);
   const B = O.newGame(DATA, 'machida', '旧', '2026-10-14');
   for (let g = 0; g < 200 && B.date < '2027-02-20'; g++) playDay(B, O);
   fs.unlinkSync(tmp);
   E.migrate(B, DATA);
   const bc = B.clubs[B.my], bl = E.linkEval(B, B.my, bc.tac.form, bc.tac.xi);
-  ok(B.v >= 16 && bl.avg > 30 && bl.avg < 95, `be3e2da (${B.date}): 連携 estimated, the XI's average ${bl.avg.toFixed(0)}`);
+  ok(B.v >= 16 && bl.avg > 30 && bl.avg < 95, `a660d1d (${B.date}): 連携 estimated, the XI's average ${bl.avg.toFixed(0)}`);
   for (let g = 0; g < 60; g++) playDay(B);
-  ok(Object.values(bc.lk).some(e => e[1] > 0), `be3e2da: the season goes on (${B.date})`);
+  ok(Object.values(bc.lk).some(e => e[1] > 0), `a660d1d: the season goes on (${B.date})`);
 }
 
 console.log(fails ? `FAILS ${fails}` : 'all ok');

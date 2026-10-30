@@ -1,6 +1,6 @@
 // ホームタウン (2026-10-15, 作業4): the supporters (c.fans) and the crowd, the buildings (cost, works, one at a time,
 // upkeep, effects), the AI clubs' spare money, a couple of seasons of money, old saves (v14, and saves made with the
-// engines of be3e2da and 1addd7a).
+// engines of a660d1d and 8ebbdd1).
 // usage: node dev/test/hometown.js
 const E = require('../src/engine.js');
 const DATA = require('../data.json');
@@ -232,7 +232,7 @@ function TOWN_OK() { return Object.keys(B).length === 12 && B.exp.cost[0] === 15
   ok(Object.values(M.clubs).filter(x => x.id !== M.my && !x.ab && M.order.includes(x.id)).every(x => x.fans === Math.round(E.fansTarget(x)) && !x.town), 'the other clubs: supporters at their level, no buildings');
   ok(mc.fin.up === 0 && E.migrate(clone(M), DATA).clubs[M.my].fans === mc.fans, 'the books have an upkeep line; migrating twice changes nothing');
 }
-for (const sha of ['be3e2da', '1addd7a']) {
+for (const sha of ['a660d1d', '8ebbdd1']) {
   const tmp = path.join(require('os').tmpdir(), `engine_${sha}_${process.pid}.js`);
   let old = null;
   try { fs.writeFileSync(tmp, execSync(`git show ${sha}:dev/src/engine.js`, { cwd: path.join(__dirname, '..', '..') })); old = require(tmp); } catch (e) { console.log(`(skip ${sha} save: no git history)`); }

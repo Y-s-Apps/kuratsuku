@@ -4,7 +4,7 @@
 // → 北海道 on the first day), what it costs (mine and the AI clubs'), what it does (growth = wk weeks of devWeek at once,
 // 連携 = pm practice matches for the XI, 調子, minor injuries, 宮崎's rehab, my できごと, the report and its stop), who
 // isn't there (away with his national team until he is back, the injured, on loan, a summer signing from the day he
-// comes), the AI clubs (the standard camp), a new job, the season after, old saves (v16 = b9f4f3a, be3e2da: none in
+// comes), the AI clubs (the standard camp), a new job, the season after, old saves (v16 = 475f55b, a660d1d: none in
 // 2026/27, then as usual).
 // usage: node dev/test/camp.js   (about a minute: it plays the first season through)
 // a seeded Math.random (the engine takes it when it loads): branches from the same state start from the same numbers
@@ -218,8 +218,8 @@ for (const k of CP.keys) {
   ok(A.order.every(id => A.clubs[id].fin.camp === 0), 'the new season\'s accounts start at 0');
 }
 
-/* old saves: b9f4f3a (v16) and be3e2da, in 2026/27 (none that season) and the next season as usual */
-for (const sha of ['b9f4f3a', 'be3e2da']) {
+/* old saves: 475f55b (v16) and a660d1d, in 2026/27 (none that season) and the next season as usual */
+for (const sha of ['475f55b', 'a660d1d']) {
   const tmp = path.join(os.tmpdir(), `engine_${sha}_camp_${process.pid}.js`);
   fs.writeFileSync(tmp, execSync(`git show ${sha}:dev/src/engine.js`, { cwd: path.join(__dirname, '..', '..') }));
   const old = require(tmp);

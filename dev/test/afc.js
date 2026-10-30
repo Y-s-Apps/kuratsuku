@@ -4,9 +4,10 @@
 // clubs drawn from 2023/24〜2026/27, the holders in, the Lカップ seeds), discipline, an old save (v17), and the quick
 // simulation of overseas matches against the match engine (`calib` argument: refit it).
 // usage: node dev/test/afc.js [calib]
+// the seed goes in before the engine is read (it keeps Math.random as it finds it, const R): swapped later, it did nothing (2026-10-30)
+let x = Number(process.env.SEED || 21); Math.random = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
 const E = require('../src/engine.js'); const DATA = require('../data.json');
 let bad = 0; const ok = (c, m) => { if (!c) { bad++; console.log('NG', m); } };
-let x = Number(process.env.SEED || 21); Math.random = () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; };
 const A = DATA.afc;
 const play = (S, until) => {
   for (let g = 0; g < 30000; g++) {
